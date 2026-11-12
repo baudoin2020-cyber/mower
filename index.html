@@ -2,545 +2,696 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Robot tondeuse de Braitenberg</title>
 <style>
-  :root {
-    --bg: #f6f5f0; --panel: #ffffff; --ink: #1f2a1f; --muted: #5d6b5d;
-    --accent: #2f7d32; --accent2: #c0392b; --line: #dfe3da;
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-         background: var(--bg); color: var(--ink); }
-  header { display: flex; align-items: baseline; justify-content: space-between;
-           padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
-  header h1 { margin: 0; font-size: 1.25rem; }
-  header p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
-  .lang button { border: 1px solid var(--line); background: #fff; padding: 4px 10px; cursor: pointer; border-radius: 6px; }
-  .lang button.on { background: var(--ink); color: #fff; }
-  main { display: grid; grid-template-columns: minmax(0, 620px) minmax(300px, 1fr); gap: 18px; padding: 18px 22px; max-width: 1200px; }
-  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
-  .card h2 { font-size: 1rem; margin: 0 0 10px; }
-  canvas#lawn { width: 100%; height: auto; border-radius: 8px; display: block; background: #3f8f3a; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
-  button.act { border: none; background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: .9rem; }
-  button.act.sec { background: #e9ece4; color: var(--ink); }
-  button.act.warn { background: var(--accent2); }
-  button.act:disabled { opacity: .5; cursor: default; }
-  select { padding: 6px; border-radius: 6px; border: 1px solid var(--line); }
-  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
-  .stat { background: #f1f4ec; border-radius: 8px; padding: 8px 10px; }
-  .stat .v { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-  .stat .k { font-size: .75rem; color: var(--muted); }
-  .slider { display: grid; grid-template-columns: 1fr 52px; gap: 2px 8px; margin-bottom: 9px; }
-  .slider label { font-size: .85rem; }
-  .slider output { text-align: right; font-variant-numeric: tabular-nums; font-size: .85rem; }
-  .slider input { grid-column: 1 / 3; width: 100%; }
-  .hint { font-size: .8rem; color: var(--muted); margin: 4px 0 10px; }
-  .result { font-size: .95rem; margin-top: 8px; min-height: 1.3em; }
-  canvas#chart { width: 100%; height: 130px; display: block; background: #f7f8f4; border-radius: 6px; margin-top: 8px; }
-  .legend { font-size: .78rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
-  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
-  footer { padding: 0 22px 20px; color: var(--muted); font-size: .8rem; }
+:root{--bg:#f6f5f0;--card:#fff;--ink:#1f2a1f;--muted:#5d6b5d;--accent:#2f7d32;--orange:#d9822b;--red:#c0392b;--line:#dfe3da}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
+header{padding:12px 20px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;border-bottom:1px solid var(--line);background:#fff;position:sticky;top:0;z-index:5}
+header h1{font-size:19px;margin:0}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+main{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:16px;padding:16px;max-width:1500px;margin:0 auto}
+@media(max-width:1050px){main{grid-template-columns:1fr}}
+.viewwrap{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;height:min(64vh,660px);min-height:340px}
+#view{width:100%;height:100%;display:block}
+#mini{position:absolute;right:10px;top:10px;width:200px;height:180px;background:rgba(255,255,255,.92);border:1px solid var(--line);border-radius:8px}
+#hud{position:absolute;left:12px;top:10px;font-size:15px;line-height:1.45;background:rgba(255,255,255,.88);padding:6px 10px;border-radius:8px;pointer-events:none;font-variant-numeric:tabular-nums}
+#hud:empty{display:none}
+#badge{white-space:nowrap;position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font-weight:700;font-size:18px;padding:6px 14px;border-radius:999px;color:#fff;pointer-events:none}
+#badge:empty{display:none}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+.controls .sep{width:1px;height:28px;background:var(--line);margin:0 4px}
+button{font:inherit;font-size:15px;padding:7px 12px;border-radius:8px;border:1px solid #cfd5c8;background:#fff;color:var(--ink);cursor:pointer}
+button:hover{border-color:#8f9a88}
+button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:default}
+.speed{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+#archi{width:100%;display:block}
+.slider{display:grid;grid-template-columns:1fr 60px;gap:0 8px;align-items:center;margin:7px 0}
+.slider label{font-size:14px}
+.slider output{font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+.slider input{grid-column:1/3;width:100%;accent-color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.presets button{font-size:13px;padding:4px 8px}
+.notes{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 18px;line-height:1.55}
+.notes h2{margin:0 0 8px;font-size:20px}
+.notes h4{margin:12px 0 4px;font-size:15px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.notes ul{margin:4px 0;padding-left:22px}
+.concl{background:#fff4e2;border-left:4px solid var(--orange);padding:8px 12px;border-radius:4px;margin-top:10px}
+table.ro{width:100%;border-collapse:collapse;font-size:15px}
+table.ro td{padding:3px 2px;border-bottom:1px solid #f0f2ec}
+table.ro td.v{text-align:right;font-variant-numeric:tabular-nums;font-weight:700}
+.formula{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#f1f4ec;padding:7px 9px;border-radius:6px;margin-top:8px;line-height:1.6;white-space:pre-wrap}
+#chart{width:100%;height:240px;display:block;margin-top:8px}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0}
+select{font:inherit;font-size:15px;padding:6px 8px;border-radius:8px;border:1px solid #cfd5c8;background:#fff}
+.small{font-size:13px;color:var(--muted)}
+.res{font-size:14px;margin-top:4px;min-height:1.2em}
+.best{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#f1f4ec;padding:6px 8px;border-radius:6px;margin-top:6px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin-top:4px}
+.legend span::before{content:"";display:inline-block;width:12px;height:3px;margin-right:5px;vertical-align:middle;background:var(--c)}
+hr{border:none;border-top:1px solid var(--line);margin:12px 0}
+footer{padding:0 22px 20px;color:var(--muted);font-size:.8rem;max-width:1500px;margin:0 auto}
 </style>
 </head>
 <body>
 <header>
-  <div>
-    <h1 data-i18n="title">Robot tondeuse de Braitenberg</h1>
-    <p data-i18n="subtitle">Régler un agent à la main, définir une fonction d'évaluation, puis laisser l'ordinateur optimiser.</p>
-  </div>
-  <div class="lang"><button id="lang-fr" class="on">FR</button> <button id="lang-en">EN</button></div>
+  <h1>🌱 Robot tondeuse de Braitenberg</h1>
+  <nav class="tabs" id="tabs">
+    <button data-step="1">1 · Réflexes : 2 capteurs, 2 moteurs</button>
+    <button data-step="2">2 · Pare-choc et états</button>
+    <button data-step="3">3 · Le jardin : fitness et optimisation</button>
+  </nav>
 </header>
-
 <main>
   <section>
-    <div class="card">
-      <canvas id="lawn" width="600" height="400"></canvas>
-      <div class="controls">
-        <button class="act" id="btn-run" data-i18n="run">▶ Lancer</button>
-        <button class="act sec" id="btn-reset" data-i18n="reset">↺ Recommencer</button>
-        <button class="act sec" id="btn-newpos" data-i18n="newpos">Nouvelle position de départ</button>
-        <label><span data-i18n="speed">Vitesse</span>
-          <select id="speed">
-            <option value="1">×1</option><option value="5" selected>×5</option>
-            <option value="20">×20</option><option value="100">×100</option>
-          </select></label>
-        <label><span data-i18n="garden">Jardin</span>
-          <select id="garden"></select></label>
-      </div>
-      <div class="stats">
-        <div class="stat"><div class="v" id="s-cov">0 %</div><div class="k" data-i18n="cov">surface tondue</div></div>
-        <div class="stat"><div class="v" id="s-col">0</div><div class="k" data-i18n="col">collisions</div></div>
-        <div class="stat"><div class="v" id="s-time">0</div><div class="k" data-i18n="time">pas de temps</div></div>
-        <div class="stat"><div class="v" id="s-score">0</div><div class="k" data-i18n="score">score</div></div>
-      </div>
-      <div class="legend">
-        <span><span class="dot" style="background:#e05a2b"></span><span data-i18n="lg-obs">capteurs d'obstacle (portée)</span></span>
-        <span><span class="dot" style="background:#ffe14d"></span><span data-i18n="lg-grass">capteurs d'herbe haute</span></span>
-      </div>
+    <div class="viewwrap">
+      <canvas id="view"></canvas>
+      <canvas id="mini"></canvas>
+      <div id="hud"></div>
+      <div id="badge"></div>
     </div>
+    <div class="controls">
+      <span id="scenarios" style="display:flex;gap:6px;flex-wrap:wrap"></span>
+      <span class="sep"></span>
+      <button id="play" class="primary">▶ Lancer</button>
+      <button id="reset">↺ Recommencer</button>
+      <label class="speed">Vitesse <input id="speed" type="range"> <b id="speedOut"></b></label>
+    </div>
+    <div class="notes" id="notes"></div>
   </section>
-
-  <section>
-    <div class="card">
-      <h2 data-i18n="h-tune">1. Régler le robot</h2>
-      <p class="hint" data-i18n="hint-tune">Chaque moteur reçoit une vitesse de base, plus la somme des capteurs multipliée par des poids. « Même côté » : le capteur gauche agit sur le moteur gauche. « Côté opposé » : le capteur gauche agit sur le moteur droit.</p>
-      <div id="sliders"></div>
-      <div class="controls">
-        <button class="act sec" id="btn-random" data-i18n="random">🎲 Valeurs au hasard</button>
-        <button class="act sec" id="btn-default" data-i18n="default">Valeurs initiales</button>
+  <aside>
+    <div class="card"><h3>Architecture interne de l'agent</h3><canvas id="archi"></canvas></div>
+    <div class="card"><h3>Valeurs en direct</h3><div id="readouts"></div></div>
+    <div class="card"><h3>Paramètres du robot</h3><div class="presets" id="presets"></div><div id="sliders"></div></div>
+    <div class="card" id="optcard" style="display:none">
+      <h3>Fitness</h3>
+      <div class="small">Fitness = surface tondue (%) − pénalité × nombre de collisions, en moyenne sur 3 parties de 4000 pas avec des départs différents.</div>
+      <div class="slider"><label>Pénalité par collision</label><output id="penaltyOut"></output><input id="penalty" type="range" min="0" max="0.5" step="0.01" value="0.1"></div>
+      <button id="evalBtn">Calculer la fitness de ces réglages</button>
+      <div class="res" id="evalRes"></div>
+      <hr>
+      <h3>Recherche automatique des paramètres</h3>
+      <div class="row">
+        <select id="method">
+          <option value="random">Recherche aléatoire</option>
+          <option value="hill">Recherche locale (escalade)</option>
+          <option value="anneal">Recuit simulé</option>
+          <option value="genetic">Algorithme génétique</option>
+        </select>
       </div>
-    </div>
-
-    <div class="card">
-      <h2 data-i18n="h-eval">2. Évaluer</h2>
-      <p class="hint" data-i18n="hint-eval">Score = surface tondue (%) − pénalité × nombre de collisions, en moyenne sur 3 parties de 4000 pas avec des départs différents.</p>
-      <div class="slider">
-        <label for="penalty" data-i18n="penalty">Pénalité par collision</label><output id="penalty-out"></output>
-        <input type="range" id="penalty" min="0" max="0.5" step="0.01" value="0.1">
+      <div class="slider"><label>Budget : nombre de réglages évalués</label><output id="budgetOut"></output><input id="budget" type="range" min="20" max="300" step="10" value="100"></div>
+      <div class="row">
+        <button id="optGo" class="primary">Lancer la recherche</button>
+        <button id="optStop">Arrêter</button>
+        <button id="optClear">Effacer</button>
       </div>
-      <button class="act" id="btn-eval" data-i18n="eval">Évaluer ces réglages</button>
-      <div class="result" id="eval-result"></div>
+      <div class="small" id="optStatus">Les essais sont faits dans le jardin choisi, avec la pénalité ci-dessus.</div>
+      <canvas id="chart"></canvas>
+      <div class="legend" id="legend"></div>
+      <div id="bestBox"></div>
     </div>
-
-    <div class="card">
-      <h2 data-i18n="h-opt">3. Optimiser</h2>
-      <p class="hint" data-i18n="hint-opt">L'ordinateur modifie un peu les réglages au hasard et garde la modification si le score ne baisse pas (recherche locale). Les curseurs suivent le meilleur réglage trouvé.</p>
-      <div class="controls" style="margin-top:0">
-        <button class="act" id="btn-opt" data-i18n="opt">Optimiser</button>
-        <button class="act warn" id="btn-stop" disabled data-i18n="stop">Arrêter</button>
-      </div>
-      <div class="result" id="opt-result"></div>
-      <canvas id="chart" width="560" height="130"></canvas>
-    </div>
-  </section>
+  </aside>
 </main>
-<footer data-i18n="footer">Activité du cours « Découverte de l'IA » (sans code) — Frédéric Baudoin. Inspiré de Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).</footer>
+<footer>Activité du cours « Découverte de l'IA » (sans code) — Frédéric Baudoin. Inspiré de Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).</footer>
 
 <script>
 "use strict";
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const W = 600, H = 400, CELL = 5, COLS = W / CELL, ROWS = H / CELL;
-const R = 10;            // robot radius (px) = cutting radius
-const WHEELBASE = 20;    // distance between wheels
-const MAXV = 3;          // max wheel speed (px / step)
-const RANGE = 60;        // obstacle sensor range (px)
-const GRASS_D = 14;      // grass sensor distance in front of the body (px)
-const STEPS = 4000;      // duration of one run
-const EVAL_SEEDS = [11, 22, 33];
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const DT=0.05;
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gaussR(rng){let u=0,v=0;while(u===0)u=rng();v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}
+const gauss=()=>gaussR(Math.random);
+const fmt=(v,d=2)=>(v<0?'−':'')+Math.abs(v).toFixed(d);
 
-// ---------------------------------------------------------------------------
-// Translations
-// ---------------------------------------------------------------------------
-const I18N = {
-  fr: {
-    title: "Robot tondeuse de Braitenberg",
-    subtitle: "Régler un agent à la main, définir une fonction d'évaluation, puis laisser l'ordinateur optimiser.",
-    run: "▶ Lancer", pause: "⏸ Pause", reset: "↺ Recommencer", newpos: "Nouvelle position de départ",
-    speed: "Vitesse", garden: "Jardin",
-    cov: "surface tondue", col: "collisions", time: "pas de temps", score: "score",
-    "lg-obs": "capteurs d'obstacle (portée)", "lg-grass": "capteurs d'herbe haute",
-    "h-tune": "1. Régler le robot",
-    "hint-tune": "Chaque moteur reçoit une vitesse de base, plus la somme des capteurs multipliée par des poids. « Même côté » : le capteur gauche agit sur le moteur gauche. « Côté opposé » : le capteur gauche agit sur le moteur droit.",
-    random: "🎲 Valeurs au hasard", default: "Valeurs initiales",
-    "h-eval": "2. Évaluer",
-    "hint-eval": "Score = surface tondue (%) − pénalité × nombre de collisions, en moyenne sur 3 parties de 4000 pas avec des départs différents.",
-    penalty: "Pénalité par collision", eval: "Évaluer ces réglages",
-    "h-opt": "3. Optimiser",
-    "hint-opt": "L'ordinateur modifie un peu les réglages au hasard et garde la modification si le score ne baisse pas (recherche locale). Les curseurs suivent le meilleur réglage trouvé.",
-    opt: "Optimiser", stop: "Arrêter",
-    footer: "Activité du cours « Découverte de l'IA » (sans code) — Frédéric Baudoin. Inspiré de Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).",
-    p_base: "Vitesse de base", p_obsSame: "Obstacle → moteur du même côté", p_obsCross: "Obstacle → moteur du côté opposé",
-    p_grassSame: "Herbe haute → moteur du même côté", p_grassCross: "Herbe haute → moteur du côté opposé",
-    p_angle: "Angle des capteurs (°)", p_noise: "Hasard (bruit sur les moteurs)",
-    g_simple: "Pelouse simple", g_trees: "Verger", g_maze: "Couloirs",
-    evalRes: (s, c, k) => `Score moyen : <b>${s.toFixed(1)}</b> (tonte ${c.toFixed(1)} %, ${k.toFixed(0)} collisions en moyenne)`,
-    optRes: (i, s, s0) => `Essai ${i} — meilleur score : <b>${s.toFixed(1)}</b> (départ : ${s0.toFixed(1)})`,
-    optDone: " — terminé. Cliquez sur « Lancer » pour voir le robot optimisé.",
-    finished: "Temps écoulé",
-  },
-  en: {
-    title: "Braitenberg Robot Mower",
-    subtitle: "Tune an agent by hand, define an evaluation function, then let the computer optimise.",
-    run: "▶ Run", pause: "⏸ Pause", reset: "↺ Restart", newpos: "New starting position",
-    speed: "Speed", garden: "Garden",
-    cov: "area mowed", col: "collisions", time: "time steps", score: "score",
-    "lg-obs": "obstacle sensors (range)", "lg-grass": "tall-grass sensors",
-    "h-tune": "1. Tune the robot",
-    "hint-tune": "Each motor receives a base speed plus the sum of the sensor readings multiplied by weights. \"Same side\": the left sensor drives the left motor. \"Opposite side\": the left sensor drives the right motor.",
-    random: "🎲 Random values", default: "Initial values",
-    "h-eval": "2. Evaluate",
-    "hint-eval": "Score = area mowed (%) − penalty × number of collisions, averaged over 3 runs of 4000 steps from different starting points.",
-    penalty: "Penalty per collision", eval: "Evaluate these settings",
-    "h-opt": "3. Optimise",
-    "hint-opt": "The computer slightly changes the settings at random and keeps the change if the score does not decrease (local search). The sliders follow the best settings found.",
-    opt: "Optimise", stop: "Stop",
-    footer: "Activity from the no-code course \"Introduction to AI\" — Frédéric Baudoin. Inspired by Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).",
-    p_base: "Base speed", p_obsSame: "Obstacle → same-side motor", p_obsCross: "Obstacle → opposite-side motor",
-    p_grassSame: "Tall grass → same-side motor", p_grassCross: "Tall grass → opposite-side motor",
-    p_angle: "Sensor angle (°)", p_noise: "Randomness (motor noise)",
-    g_simple: "Simple lawn", g_trees: "Orchard", g_maze: "Corridors",
-    evalRes: (s, c, k) => `Average score: <b>${s.toFixed(1)}</b> (${c.toFixed(1)} % mowed, ${k.toFixed(0)} collisions on average)`,
-    optRes: (i, s, s0) => `Trial ${i} — best score: <b>${s.toFixed(1)}</b> (start: ${s0.toFixed(1)})`,
-    optDone: " — done. Click \"Run\" to watch the optimised robot.",
-    finished: "Time is up",
-  }
+/* =====================================================================
+   Paramètres (mêmes noms et mêmes échelles qu'à l'étape 3)
+   ===================================================================== */
+const PSPEC={
+  base:{label:'Vitesse de base',min:0,max:3,step:.05},
+  obsSame:{label:'Obstacle → moteur du même côté',min:-3,max:3,step:.05},
+  obsCross:{label:'Obstacle → moteur du côté opposé',min:-3,max:3,step:.05},
+  grassSame:{label:'Herbe haute → moteur du même côté',min:-3,max:3,step:.05},
+  grassCross:{label:'Herbe haute → moteur du côté opposé',min:-3,max:3,step:.05},
+  angle:{label:'Angle des capteurs (°)',min:5,max:85,step:1},
+  noise:{label:'Hasard (bruit sur les moteurs)',min:0,max:1.5,step:.05},
+  recul:{label:'Impasse : durée du recul (s)',min:.2,max:3,step:.1},
+  rot:{label:'Impasse : angle de rotation (°)',min:10,max:180,step:5},
 };
-let lang = "fr";
-const t = k => I18N[lang][k];
-
-// ---------------------------------------------------------------------------
-// Parameters
-// ---------------------------------------------------------------------------
-const PARAMS = [
-  { key: "base",       min: 0,   max: 3,  step: 0.05, def: 1.5 },
-  { key: "obsSame",    min: -3,  max: 3,  step: 0.05, def: 0.5 },
-  { key: "obsCross",   min: -3,  max: 3,  step: 0.05, def: 0 },
-  { key: "grassSame",  min: -3,  max: 3,  step: 0.05, def: 0 },
-  { key: "grassCross", min: -3,  max: 3,  step: 0.05, def: 0 },
-  { key: "angle",      min: 5,   max: 85, step: 1,    def: 30 },
-  { key: "noise",      min: 0,   max: 1.5, step: 0.05, def: 0.1 },
+const LEVEL_PARAMS={1:['base','obsSame','obsCross','angle'],2:['base','obsSame','obsCross','angle','recul','rot'],3:['base','obsSame','obsCross','grassSame','grassCross','angle','noise']};
+const DEFAULTS={
+  1:{base:1.5,obsSame:.5,obsCross:0,angle:30},
+  2:{base:1.5,obsSame:.5,obsCross:0,angle:30,recul:1,rot:90},
+  3:{base:1.5,obsSame:.5,obsCross:0,grassSame:0,grassCross:0,angle:30,noise:.1}
+};
+const PARAMS={1:{...DEFAULTS[1]},2:{...DEFAULTS[2]},3:{...DEFAULTS[3]}};
+const PRESETS=[
+  ['Peureux (2a)',{base:1.5,obsSame:1.5,obsCross:0}],
+  ['Agressif (2b)',{base:1.5,obsSame:0,obsCross:1.5}],
+  ['Amoureux (3a)',{base:2,obsSame:-1.5,obsCross:0}],
+  ['Explorateur (3b)',{base:2,obsSame:0,obsCross:-1.5}],
 ];
-let params = Object.fromEntries(PARAMS.map(p => [p.key, p.def]));
+const pfmt=(k,v)=>PSPEC[k].step>=1?String(Math.round(v)):v.toFixed(2);
 
-// ---------------------------------------------------------------------------
-// Gardens (obstacles in pixel coordinates; borders are walls)
-// ---------------------------------------------------------------------------
-const GARDENS = {
-  simple: [
-    { type: "circle", x: 170, y: 140, r: 28 },
-    { type: "circle", x: 430, y: 270, r: 34 },
-    { type: "rect", x: 460, y: 40, w: 90, h: 50, kind: "shed" },
-  ],
-  trees: [
-    ...[[110,90],[250,90],[390,90],[530,90],[180,200],[320,200],[460,200],[110,310],[250,310],[390,310],[530,310]]
-      .map(([x, y]) => ({ type: "circle", x, y, r: 20 })),
-  ],
-  maze: [
-    { type: "rect", x: 150, y: 0, w: 16, h: 270, kind: "wall" },
-    { type: "rect", x: 300, y: 130, w: 16, h: 270, kind: "wall" },
-    { type: "rect", x: 450, y: 0, w: 16, h: 270, kind: "wall" },
-    { type: "circle", x: 75, y: 320, r: 26 },
-  ],
+/* =====================================================================
+   ÉTAPES 1 ET 2 : moteur en mètres (vue subjective très zoomée)
+   Géométrie calquée sur l'étape 3 : capteurs partant du bord du robot,
+   orientés à ±angle, portée fixe ; moteurs limités à ±3.
+   ===================================================================== */
+const RB={r:.22,axle:.44,unit:.17,range:1.32}; // 1 unité moteur = 0,17 m/s ; portée = 6 rayons de robot comme à l'étape 3
+function wall(x1,y1,x2,y2){return{x1,y1,x2,y2}}
+function boxSegs(x0,y0,x1,y1){return[wall(x0,y0,x1,y0),wall(x1,y0,x1,y1),wall(x1,y1,x0,y1),wall(x0,y1,x0,y0)]}
+function raySeg(ox,oy,dx,dy,s){const ex=s.x2-s.x1,ey=s.y2-s.y1,den=dx*ey-dy*ex;if(Math.abs(den)<1e-12)return Infinity;const wx=s.x1-ox,wy=s.y1-oy;const t=(wx*ey-wy*ex)/den,u=(wx*dy-wy*dx)/den;return(t>=0&&u>=0&&u<=1)?t:Infinity}
+function psd2(px,py,s){const ex=s.x2-s.x1,ey=s.y2-s.y1,L=ex*ex+ey*ey;let t=L?((px-s.x1)*ex+(py-s.y1)*ey)/L:0;t=clamp(t,0,1);const dx=s.x1+t*ex-px,dy=s.y1+t*ey-py;return dx*dx+dy*dy}
+function castRay(W,ox,oy,a,range){const dx=Math.cos(a),dy=Math.sin(a);let best=range;for(const s of W.segs){const t=raySeg(ox,oy,dx,dy,s);if(t<best)best=t}return best}
+function hits(W,x,y,r){const rr=(r+.04)*(r+.04);for(const s of W.segs)if(psd2(x,y,s)<rr)return true;return false}
+function makeWorld({walls=[],bounds,grass=false,start}){const W={segs:walls,walls,bounds,start};if(grass)W.grass=makeGrass(W);return W}
+function makeGrass(W){
+  const c=.1,b=W.bounds,nx=Math.round((b.x1-b.x0)/c),ny=Math.round((b.y1-b.y0)/c);
+  const noise=new Float32Array(nx*ny);const rg=mulberry32(3);for(let k=0;k<noise.length;k++)noise[k]=rg();
+  return{x0:b.x0,y0:b.y0,c,nx,ny,total:nx*ny,noise,cnt:new Uint16Array(nx*ny),last:new Float32Array(nx*ny).fill(-1e9),cut:0};
+}
+function mowDisc(G,x,y,rad,t){
+  const c=G.c,i0=Math.max(0,Math.floor((x-rad-G.x0)/c)),i1=Math.min(G.nx-1,Math.floor((x+rad-G.x0)/c));
+  const j0=Math.max(0,Math.floor((y-rad-G.y0)/c)),j1=Math.min(G.ny-1,Math.floor((y+rad-G.y0)/c));let nw=0;
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const k=j*G.nx+i;const dx=G.x0+(i+.5)*c-x,dy=G.y0+(j+.5)*c-y;if(dx*dx+dy*dy>rad*rad)continue;
+    if(G.cnt[k]===0){nw++;G.cut++}if(t-G.last[k]>1)G.cnt[k]++;G.last[k]=t}
+  return nw;
+}
+function povWorld(sc,enclosed){
+  const walls=[];
+  if(sc==='side')walls.push(wall(-.8,.4,.7,4.6));
+  if(sc==='face')walls.push(wall(-2,2.2,2,2.2));
+  if(sc==='coin')walls.push(wall(-1.8,1.0,.08,2.6),wall(.08,2.6,1.8,1.0));
+  let bounds={x0:-2.5,y0:-.8,x1:2.5,y1:5};
+  if(enclosed){walls.push(...boxSegs(-3,-1.5,3,5.5));bounds={x0:-3,y0:-1.5,x1:3,y1:5.5}}
+  return makeWorld({walls,bounds,start:[0,0,Math.PI/2]});
+}
+function pelouseWorld(){return makeWorld({walls:[...boxSegs(0,0,7,4.5),wall(0,2.5,4.5,2.5)],bounds:{x0:0,y0:0,x1:7,y1:4.5},grass:true,start:[5.6,1.2,2.3]})}
+function newRobot(st){const[x,y,th]=st;return{x,y,th,state:'CRUISE',phase:'',tPhase:0,rotDone:0,turnDir:1,cause:'',sL:0,sR:0,dL:0,dR:0,mL:0,mR:0,rawL:0,rawR:0,v:0,bump:false,prevBump:false,bumpFlash:0,bumps:0,stuckRef:{x,y,t:0},t:0,trace:[[x,y]],lastTrace:0,moving:0,wasted:0,stillSince:0}}
+// capteur : part du bord du robot (côté gauche = +angle en repère mathématique)
+function sensorPose(R,side,P){const a=R.th+side*P.angle*Math.PI/180;return{x:R.x+Math.cos(a)*RB.r,y:R.y+Math.sin(a)*RB.r,a}}
+function sense(R,W,P){
+  const pl=sensorPose(R,1,P),pr=sensorPose(R,-1,P);
+  R.dL=castRay(W,pl.x,pl.y,pl.a,RB.range);R.dR=castRay(W,pr.x,pr.y,pr.a,RB.range);
+  R.sL=R.dL<RB.range?1-R.dL/RB.range:0;R.sR=R.dR<RB.range?1-R.dR/RB.range:0;
+}
+function enterImpasse(R,rng,cause){R.state='IMPASSE';R.phase='recul';R.tPhase=0;R.rotDone=0;R.cause=cause;R.turnDir=R.sL>R.sR+.05?-1:R.sR>R.sL+.05?1:(rng()<.5?1:-1)}
+function stepRobot(R,W,P,level,dt,rng){
+  sense(R,W,P);
+  if(R.state==='IMPASSE'){
+    if(R.phase==='recul'&&R.tPhase>=P.recul){R.phase='rotation';R.tPhase=0;R.rotDone=0}
+    if(R.phase==='rotation'&&R.rotDone>=P.rot*Math.PI/180){R.state='CRUISE';R.phase='';R.stuckRef={x:R.x,y:R.y,t:R.t}}
+  }
+  let mL,mR;
+  if(R.state==='CRUISE'){mL=P.base+P.obsSame*R.sL+P.obsCross*R.sR;mR=P.base+P.obsSame*R.sR+P.obsCross*R.sL;R.rawL=mL;R.rawR=mR}
+  else if(R.phase==='recul'){mL=mR=-1.8}else{mL=-1.8*R.turnDir;mR=1.8*R.turnDir}
+  mL=clamp(mL,-3,3);mR=clamp(mR,-3,3);R.mL=mL;R.mR=mR;
+  const vL=mL*RB.unit,vR=mR*RB.unit,v=(vL+vR)/2,w=(vR-vL)/RB.axle;
+  const th2=R.th+w*dt,thm=R.th+w*dt/2,nx=R.x+v*Math.cos(thm)*dt,ny=R.y+v*Math.sin(thm)*dt;
+  R.prevBump=R.bump;
+  if(hits(W,nx,ny,RB.r)){R.bump=true;R.th=th2;R.v=0}else{R.bump=false;R.x=nx;R.y=ny;R.th=th2;R.v=v}
+  if(R.state==='IMPASSE'&&R.phase==='rotation')R.rotDone+=Math.abs(w)*dt;
+  if(R.bump&&!R.prevBump){R.bumps++;R.bumpFlash=.5}
+  R.bumpFlash=Math.max(0,R.bumpFlash-dt);
+  if(level>=2&&R.state==='CRUISE'){
+    if(R.bump)enterImpasse(R,rng,'choc');
+    else if(R.t-R.stuckRef.t>=2.5){if(Math.hypot(R.x-R.stuckRef.x,R.y-R.stuckRef.y)<.15)enterImpasse(R,rng,'bloqué');R.stuckRef={x:R.x,y:R.y,t:R.t}}
+  }
+  if(Math.abs(R.v)<.01&&Math.abs(w)<.05)R.stillSince+=dt;else R.stillSince=0;
+  if(W.grass){const nw=mowDisc(W.grass,R.x,R.y,RB.r,R.t);if(Math.abs(R.v)>.05){R.moving+=dt;if(nw===0)R.wasted+=dt}}
+  R.t+=dt;R.tPhase+=dt;
+  if(R.t-R.lastTrace>.15){R.trace.push([R.x,R.y]);R.lastTrace=R.t;if(R.trace.length>4000)R.trace.shift()}
+}
+const coverageM=W=>100*W.grass.cut/W.grass.total;
+
+/* =====================================================================
+   ÉTAPE 3 : la simulation d'origine (pixels, repère écran)
+   ===================================================================== */
+const SW=600,SH=400,CELL=5,COLS=SW/CELL,ROWS=SH/CELL;
+const R3=10,WHEELBASE=20,MAXV=3,RANGE=60,GRASS_D=14,STEPS=4000,EVAL_SEEDS=[11,22,33];
+const GARDENS={
+  simple:[{type:"circle",x:170,y:140,r:28},{type:"circle",x:430,y:270,r:34},{type:"rect",x:460,y:40,w:90,h:50,kind:"shed"}],
+  trees:[[110,90],[250,90],[390,90],[530,90],[180,200],[320,200],[460,200],[110,310],[250,310],[390,310],[530,310]].map(([x,y])=>({type:"circle",x,y,r:20})),
+  maze:[{type:"rect",x:150,y:0,w:16,h:270,kind:"wall"},{type:"rect",x:300,y:130,w:16,h:270,kind:"wall"},{type:"rect",x:450,y:0,w:16,h:270,kind:"wall"},{type:"circle",x:75,y:320,r:26}],
 };
-let gardenKey = "simple";
-
-// ---------------------------------------------------------------------------
-// Geometry
-// ---------------------------------------------------------------------------
-function insideObstacle(obs, x, y) {
-  if (x < 0 || y < 0 || x >= W || y >= H) return true;
-  for (const o of obs) {
-    if (o.type === "circle") { if ((x - o.x) ** 2 + (y - o.y) ** 2 < o.r * o.r) return true; }
-    else if (x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h) return true;
-  }
+function insideObstacle(obs,x,y){
+  if(x<0||y<0||x>=SW||y>=SH)return true;
+  for(const o of obs){if(o.type==="circle"){if((x-o.x)**2+(y-o.y)**2<o.r*o.r)return true}else if(x>=o.x&&x<o.x+o.w&&y>=o.y&&y<o.y+o.h)return true}
   return false;
 }
-function collides(obs, x, y) {
-  if (x < R || y < R || x > W - R || y > H - R) return true;
-  for (const o of obs) {
-    if (o.type === "circle") { if ((x - o.x) ** 2 + (y - o.y) ** 2 < (o.r + R) ** 2) return true; }
-    else {
-      const cx = Math.max(o.x, Math.min(x, o.x + o.w)), cy = Math.max(o.y, Math.min(y, o.y + o.h));
-      if ((x - cx) ** 2 + (y - cy) ** 2 < R * R) return true;
-    }
-  }
+function collides(obs,x,y){
+  if(x<R3||y<R3||x>SW-R3||y>SH-R3)return true;
+  for(const o of obs){if(o.type==="circle"){if((x-o.x)**2+(y-o.y)**2<(o.r+R3)**2)return true}
+    else{const cx=Math.max(o.x,Math.min(x,o.x+o.w)),cy=Math.max(o.y,Math.min(y,o.y+o.h));if((x-cx)**2+(y-cy)**2<R3*R3)return true}}
   return false;
 }
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6D2B79F5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+const templates={};
+function gardenTemplate(key){
+  if(templates[key])return templates[key];
+  const obs=GARDENS[key],grid=new Uint8Array(COLS*ROWS);let total=0;
+  for(let j=0;j<ROWS;j++)for(let i=0;i<COLS;i++){const g=insideObstacle(obs,i*CELL+CELL/2,j*CELL+CELL/2)?0:1;grid[j*COLS+i]=g;total+=g}
+  return(templates[key]={grid,total});
 }
-
-// Template grid per garden: 0 = obstacle, 1 = grass
-const templates = {};
-function gardenTemplate(key) {
-  if (templates[key]) return templates[key];
-  const obs = GARDENS[key], grid = new Uint8Array(COLS * ROWS);
-  let total = 0;
-  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
-    const g = insideObstacle(obs, i * CELL + CELL / 2, j * CELL + CELL / 2) ? 0 : 1;
-    grid[j * COLS + i] = g; total += g;
-  }
-  return (templates[key] = { grid, total });
+function createSim(key,seed){
+  const tpl=gardenTemplate(key),rng=mulberry32(seed);
+  const sim={key,obs:GARDENS[key],grid:tpl.grid.slice(),total:tpl.total,rng,x:0,y:0,a:0,steps:0,collisions:0,mowed:0,sensors:null,mL:0,mR:0,rawL:0,rawR:0,bumped:false};
+  do{sim.x=R3+rng()*(SW-2*R3);sim.y=R3+rng()*(SH-2*R3)}while(collides(sim.obs,sim.x,sim.y));
+  sim.a=rng()*2*Math.PI;mow(sim);return sim;
 }
-
-// ---------------------------------------------------------------------------
-// Simulation
-// ---------------------------------------------------------------------------
-function createSim(key, seed) {
-  const tpl = gardenTemplate(key), rng = mulberry32(seed);
-  const sim = { key, obs: GARDENS[key], grid: tpl.grid.slice(), total: tpl.total, rng,
-                x: 0, y: 0, a: 0, steps: 0, collisions: 0, mowed: 0, sensors: null, changed: [] };
-  do { sim.x = R + rng() * (W - 2 * R); sim.y = R + rng() * (H - 2 * R); } while (collides(sim.obs, sim.x, sim.y));
-  sim.a = rng() * 2 * Math.PI;
-  mow(sim);
-  return sim;
+function mow(sim){
+  const i0=Math.max(0,Math.floor((sim.x-R3)/CELL)),i1=Math.min(COLS-1,Math.floor((sim.x+R3)/CELL));
+  const j0=Math.max(0,Math.floor((sim.y-R3)/CELL)),j1=Math.min(ROWS-1,Math.floor((sim.y+R3)/CELL));
+  for(let j=j0;j<=j1;j++)for(let i=i0;i<=i1;i++){const idx=j*COLS+i;if(sim.grid[idx]!==1)continue;const cx=i*CELL+CELL/2,cy=j*CELL+CELL/2;if((cx-sim.x)**2+(cy-sim.y)**2<=R3*R3){sim.grid[idx]=2;sim.mowed++}}
 }
-function mow(sim) {
-  const i0 = Math.max(0, Math.floor((sim.x - R) / CELL)), i1 = Math.min(COLS - 1, Math.floor((sim.x + R) / CELL));
-  const j0 = Math.max(0, Math.floor((sim.y - R) / CELL)), j1 = Math.min(ROWS - 1, Math.floor((sim.y + R) / CELL));
-  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
-    const idx = j * COLS + i;
-    if (sim.grid[idx] !== 1) continue;
-    const cx = i * CELL + CELL / 2, cy = j * CELL + CELL / 2;
-    if ((cx - sim.x) ** 2 + (cy - sim.y) ** 2 <= R * R) { sim.grid[idx] = 2; sim.mowed++; sim.changed.push(idx); }
-  }
-}
-function obstacleSensor(sim, a) {
-  const c = Math.cos(a), s = Math.sin(a);
-  for (let d = 0; d <= RANGE; d += 2) {
-    if (insideObstacle(sim.obs, sim.x + c * (R + d), sim.y + s * (R + d))) return 1 - d / RANGE;
-  }
-  return 0;
-}
-function grassSensor(sim, a) {
-  const px = sim.x + Math.cos(a) * (R + GRASS_D), py = sim.y + Math.sin(a) * (R + GRASS_D);
-  const i = Math.floor(px / CELL), j = Math.floor(py / CELL);
-  if (i < 0 || j < 0 || i >= COLS || j >= ROWS) return 0;
-  return sim.grid[j * COLS + i] === 1 ? 1 : 0;
-}
-function step(sim, p) {
-  const da = p.angle * Math.PI / 180;
-  const aL = sim.a - da, aR = sim.a + da;           // canvas y points down: left = smaller angle
-  const oL = obstacleSensor(sim, aL), oR = obstacleSensor(sim, aR);
-  const gL = grassSensor(sim, aL), gR = grassSensor(sim, aR);
-  sim.sensors = { oL, oR, gL, gR, aL, aR };
-  const clamp = v => Math.max(-MAXV, Math.min(MAXV, v));
-  const mL = clamp(p.base + p.obsSame * oL + p.obsCross * oR + p.grassSame * gL + p.grassCross * gR + p.noise * (sim.rng() * 2 - 1));
-  const mR = clamp(p.base + p.obsSame * oR + p.obsCross * oL + p.grassSame * gR + p.grassCross * gL + p.noise * (sim.rng() * 2 - 1));
-  sim.a += (mL - mR) / WHEELBASE;                    // left wheel faster -> turn right
-  const v = (mL + mR) / 2;
-  const nx = sim.x + Math.cos(sim.a) * v, ny = sim.y + Math.sin(sim.a) * v;
-  if (collides(sim.obs, nx, ny)) {
-    // Bumper reflex, as on real robot mowers: back off a little and turn by a random angle
-    sim.collisions++;
-    const bx = sim.x - Math.cos(sim.a) * 2, by = sim.y - Math.sin(sim.a) * 2;
-    if (!collides(sim.obs, bx, by)) { sim.x = bx; sim.y = by; }
-    sim.a += (sim.rng() < 0.5 ? -1 : 1) * (Math.PI / 2 + sim.rng() * Math.PI / 2);
-  } else { sim.x = nx; sim.y = ny; mow(sim); }
+function obstacleSensor(sim,a){const c=Math.cos(a),s=Math.sin(a);for(let d=0;d<=RANGE;d+=2){if(insideObstacle(sim.obs,sim.x+c*(R3+d),sim.y+s*(R3+d)))return 1-d/RANGE}return 0}
+function grassSensor(sim,a){const px=sim.x+Math.cos(a)*(R3+GRASS_D),py=sim.y+Math.sin(a)*(R3+GRASS_D);const i=Math.floor(px/CELL),j=Math.floor(py/CELL);if(i<0||j<0||i>=COLS||j>=ROWS)return 0;return sim.grid[j*COLS+i]===1?1:0}
+function step3(sim,p){
+  const da=p.angle*Math.PI/180,aL=sim.a-da,aR=sim.a+da; // repère écran (y vers le bas) : gauche = angle plus petit
+  const oL=obstacleSensor(sim,aL),oR=obstacleSensor(sim,aR),gL=grassSensor(sim,aL),gR=grassSensor(sim,aR);
+  sim.sensors={oL,oR,gL,gR,aL,aR};
+  const rawL=p.base+p.obsSame*oL+p.obsCross*oR+p.grassSame*gL+p.grassCross*gR,rawR=p.base+p.obsSame*oR+p.obsCross*oL+p.grassSame*gR+p.grassCross*gL;
+  const mL=clamp(rawL+p.noise*(sim.rng()*2-1),-MAXV,MAXV),mR=clamp(rawR+p.noise*(sim.rng()*2-1),-MAXV,MAXV);
+  sim.rawL=rawL;sim.rawR=rawR;sim.mL=mL;sim.mR=mR;
+  sim.a+=(mL-mR)/WHEELBASE;
+  const v=(mL+mR)/2,nx=sim.x+Math.cos(sim.a)*v,ny=sim.y+Math.sin(sim.a)*v;
+  if(collides(sim.obs,nx,ny)){
+    // réflexe du pare-choc (l'état IMPASSE de l'étape 2, en un seul pas) : petit recul, rotation au hasard de 90° à 180°
+    sim.collisions++;sim.bumped=true;
+    const bx=sim.x-Math.cos(sim.a)*2,by=sim.y-Math.sin(sim.a)*2;
+    if(!collides(sim.obs,bx,by)){sim.x=bx;sim.y=by}
+    sim.a+=(sim.rng()<.5?-1:1)*(Math.PI/2+sim.rng()*Math.PI/2);
+  }else{sim.x=nx;sim.y=ny;mow(sim)}
   sim.steps++;
 }
-const coverage = sim => 100 * sim.mowed / sim.total;
-const scoreOf = (sim, penalty) => coverage(sim) - penalty * sim.collisions;
+const coverage3=sim=>100*sim.mowed/sim.total;
+const scoreOf=(sim,pen)=>coverage3(sim)-pen*sim.collisions;
+function evaluate3(p,key,pen){
+  let s=0,c=0,k=0;
+  for(const seed of EVAL_SEEDS){const sim=createSim(key,seed);for(let n=0;n<STEPS;n++)step3(sim,p);s+=scoreOf(sim,pen);c+=coverage3(sim);k+=sim.collisions}
+  const n=EVAL_SEEDS.length;return{score:s/n,cov:c/n,col:k/n};
+}
+const penalty=()=>+$('#penalty').value;
 
-function evaluate(p, key, penalty) {
-  let s = 0, c = 0, k = 0;
-  for (const seed of EVAL_SEEDS) {
-    const sim = createSim(key, seed);
-    for (let n = 0; n < STEPS; n++) step(sim, p);
-    s += scoreOf(sim, penalty); c += coverage(sim); k += sim.collisions;
-  }
-  const n = EVAL_SEEDS.length;
-  return { score: s / n, cov: c / n, col: k / n };
-}
-
-// ---------------------------------------------------------------------------
-// Drawing
-// ---------------------------------------------------------------------------
-const lawn = document.getElementById("lawn"), ctx = lawn.getContext("2d");
-const off = document.createElement("canvas"); off.width = COLS; off.height = ROWS;
-const offCtx = off.getContext("2d"), img = offCtx.createImageData(COLS, ROWS);
-const GRASS_RGB = [[63, 143, 58], [58, 135, 54], [68, 150, 62]], CUT_RGB = [[166, 214, 138], [158, 206, 130]];
-function paintCell(idx, g) {
-  const i = idx % COLS, j = (idx / COLS) | 0, o = idx * 4;
-  const col = g === 1 ? GRASS_RGB[(i * 7 + j * 13) % 3] : g === 2 ? CUT_RGB[(i + j) % 2] : [120, 100, 80];
-  img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
-}
-function paintAll(sim) { for (let idx = 0; idx < sim.grid.length; idx++) paintCell(idx, sim.grid[idx]); sim.changed.length = 0; }
-function draw(sim) {
-  for (const idx of sim.changed) paintCell(idx, 2);
-  sim.changed.length = 0;
-  offCtx.putImageData(img, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(off, 0, 0, W, H);
-  // obstacles
-  for (const o of sim.obs) {
-    if (o.type === "circle") {
-      ctx.fillStyle = "#24572a"; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 2 * Math.PI); ctx.fill();
-      ctx.fillStyle = "#2f6e35"; ctx.beginPath(); ctx.arc(o.x - o.r * .25, o.y - o.r * .25, o.r * .55, 0, 2 * Math.PI); ctx.fill();
-    } else {
-      ctx.fillStyle = o.kind === "wall" ? "#8b8f88" : "#9c6b45"; ctx.fillRect(o.x, o.y, o.w, o.h);
-    }
-  }
-  // sensors
-  const s = sim.sensors;
-  if (s) {
-    for (const [a, v] of [[s.aL, s.oL], [s.aR, s.oR]]) {
-      ctx.strokeStyle = v > 0 ? "#e05a2b" : "rgba(224,90,43,.35)"; ctx.lineWidth = v > 0 ? 2.5 : 1.5;
-      ctx.beginPath(); ctx.moveTo(sim.x + Math.cos(a) * R, sim.y + Math.sin(a) * R);
-      ctx.lineTo(sim.x + Math.cos(a) * (R + RANGE), sim.y + Math.sin(a) * (R + RANGE)); ctx.stroke();
-    }
-    for (const [a, v] of [[s.aL, s.gL], [s.aR, s.gR]]) {
-      ctx.fillStyle = v ? "#ffe14d" : "rgba(255,225,77,.35)";
-      ctx.beginPath(); ctx.arc(sim.x + Math.cos(a) * (R + GRASS_D), sim.y + Math.sin(a) * (R + GRASS_D), 3.5, 0, 2 * Math.PI); ctx.fill();
-    }
-  }
-  // robot body
-  ctx.fillStyle = "#c0392b"; ctx.strokeStyle = "#5e1a13"; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(sim.x, sim.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
-  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(sim.x, sim.y); ctx.lineTo(sim.x + Math.cos(sim.a) * R, sim.y + Math.sin(sim.a) * R); ctx.stroke();
-  if (sim.steps >= STEPS) {
-    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, H / 2 - 24, W, 48);
-    ctx.fillStyle = "#fff"; ctx.font = "600 20px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(`${t("finished")} — ${t("score")} ${scoreOf(sim, penalty()).toFixed(1)}`, W / 2, H / 2);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// UI
-// ---------------------------------------------------------------------------
-const $ = id => document.getElementById(id);
-const fmt = (p, v) => p.step >= 1 ? String(Math.round(v)) : v.toFixed(2);
-const penalty = () => parseFloat($("penalty").value);
-
-function buildSliders() {
-  const box = $("sliders"); box.innerHTML = "";
-  for (const p of PARAMS) {
-    const d = document.createElement("div"); d.className = "slider";
-    d.innerHTML = `<label for="p-${p.key}">${t("p_" + p.key)}</label><output id="o-${p.key}"></output>
-      <input type="range" id="p-${p.key}" min="${p.min}" max="${p.max}" step="${p.step}">`;
-    box.appendChild(d);
-    const inp = d.querySelector("input");
-    inp.value = params[p.key];
-    inp.addEventListener("input", () => { params[p.key] = parseFloat(inp.value); syncOutputs(); });
-  }
-  syncOutputs();
-}
-function syncSliders() { for (const p of PARAMS) $("p-" + p.key).value = params[p.key]; syncOutputs(); }
-function syncOutputs() {
-  for (const p of PARAMS) $("o-" + p.key).textContent = fmt(p, params[p.key]);
-  $("penalty-out").textContent = penalty().toFixed(3);
-}
-
-let sim, running = false, seed = EVAL_SEEDS[0];
-function resetSim() {
-  sim = createSim(gardenKey, seed);
-  paintAll(sim); updateStats(); draw(sim);
-}
-function updateStats() {
-  $("s-cov").textContent = coverage(sim).toFixed(1) + " %";
-  $("s-col").textContent = sim.collisions;
-  $("s-time").textContent = sim.steps;
-  $("s-score").textContent = scoreOf(sim, penalty()).toFixed(1);
-}
-function setRunning(on) {
-  running = on; $("btn-run").textContent = on ? t("pause") : t("run");
-  if (on) requestAnimationFrame(loop);
-}
-function loop() {
-  if (!running) return;
-  const n = parseInt($("speed").value, 10);
-  for (let k = 0; k < n && sim.steps < STEPS; k++) step(sim, params);
-  draw(sim); updateStats();
-  if (sim.steps >= STEPS) { setRunning(false); return; }
-  requestAnimationFrame(loop);
-}
-
-$("btn-run").onclick = () => { if (sim.steps >= STEPS) resetSim(); setRunning(!running); };
-$("btn-reset").onclick = () => { setRunning(false); resetSim(); };
-$("btn-newpos").onclick = () => { setRunning(false); seed = 1 + Math.floor(Math.random() * 1e6); resetSim(); };
-$("garden").onchange = e => { setRunning(false); gardenKey = e.target.value; resetSim(); };
-$("penalty").oninput = () => { syncOutputs(); updateStats(); };
-$("btn-random").onclick = () => {
-  for (const p of PARAMS) params[p.key] = Math.round((p.min + Math.random() * (p.max - p.min)) / p.step) * p.step;
-  syncSliders();
+/* =====================================================================
+   État de l'application
+   ===================================================================== */
+const SCEN={
+  1:[['side','Obstacle sur le côté'],['face','Obstacle en face'],['coin','Coin en face']],
+  2:[['side','Sur le côté'],['face','En face'],['coin','Coin en face'],['pelouse','Pelouse (3 min)']],
+  3:[['simple','Pelouse simple'],['trees','Verger'],['maze','Couloirs']]
 };
-$("btn-default").onclick = () => { for (const p of PARAMS) params[p.key] = p.def; syncSliders(); };
-$("btn-eval").onclick = () => {
-  $("eval-result").textContent = "…";
-  setTimeout(() => { const r = evaluate(params, gardenKey, penalty()); $("eval-result").innerHTML = t("evalRes")(r.score, r.cov, r.col); }, 20);
-};
+const st={step:1,scen:'side',running:false,done:false,acc:0,speed:1,W:null,R:null,sim:null,seed:EVAL_SEEDS[0],rng:null,view:'pov',dur:0,flash:0};
+st.P=()=>PARAMS[st.step];
 
-// ---------------------------------------------------------------------------
-// Optimisation: (1+1) local search with Gaussian mutations
-// ---------------------------------------------------------------------------
-let opt = null;
-function gauss(rng) { let u = 0, v = 0; while (u === 0) u = rng(); v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
-function mutate(p, rng) {
-  const q = { ...p };
-  for (const d of PARAMS) {
-    if (rng() < 0.5) continue;                       // change about half of the parameters
-    const v = q[d.key] + gauss(rng) * 0.15 * (d.max - d.min);
-    q[d.key] = Math.round(Math.max(d.min, Math.min(d.max, v)) / d.step) * d.step;
+function loadScenario(){
+  const s=st.step,sc=st.scen;
+  if(s===3){st.sim=createSim(sc,st.seed);st.view='sim';st.flash=0;fullPaint=true}
+  else{
+    if(s===1){st.W=povWorld(sc,false);st.view='pov';st.dur=25}
+    else if(sc==='pelouse'){st.W=pelouseWorld();st.view='top';st.dur=180}
+    else{st.W=povWorld(sc,true);st.view='pov';st.dur=40}
+    st.R=newRobot(st.W.start);st.rng=mulberry32(7);sense(st.R,st.W,st.P());
   }
-  return q;
-}
-function startOpt() {
+  st.acc=0;st.done=false;
+  $('#mini').style.display=st.view==='pov'?'block':'none';
   setRunning(false);
-  const pen = penalty(), r0 = evaluate(params, gardenKey, pen);
-  opt = { best: { ...params }, bestScore: r0.score, start: r0.score, iter: 0, max: 150,
-          history: [r0.score], tried: [r0.score], rng: mulberry32(Date.now() & 0xffffffff), pen, key: gardenKey };
-  $("btn-opt").disabled = true; $("btn-stop").disabled = false; $("btn-eval").disabled = true;
-  optTick();
 }
-function optTick() {
-  if (!opt) return;
-  const cand = mutate(opt.best, opt.rng), r = evaluate(cand, opt.key, opt.pen);
-  opt.iter++; opt.tried.push(r.score);
-  if (r.score >= opt.bestScore) { opt.best = cand; opt.bestScore = r.score; params = { ...cand }; syncSliders(); }
-  opt.history.push(opt.bestScore);
-  $("opt-result").innerHTML = t("optRes")(opt.iter, opt.bestScore, opt.start);
-  drawChart();
-  if (opt.iter >= opt.max) stopOpt(); else setTimeout(optTick, 0);
-}
-function stopOpt() {
-  if (!opt) return;
-  $("opt-result").innerHTML = t("optRes")(opt.iter, opt.bestScore, opt.start) + t("optDone");
-  opt.done = true; const last = opt; opt = null; lastOpt = last;
-  $("btn-opt").disabled = false; $("btn-stop").disabled = true; $("btn-eval").disabled = false;
-  resetSim();
-}
-let lastOpt = null;
-function drawChart() {
-  const o = opt || lastOpt, c = $("chart"), g = c.getContext("2d"), w = c.width, h = c.height;
-  g.clearRect(0, 0, w, h);
-  if (!o) return;
-  const all = o.tried.concat(o.history), lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo);
-  const n = Math.max(o.max, 1), X = i => 30 + i / n * (w - 40), Y = v => h - 18 - (v - lo) / span * (h - 30);
-  g.strokeStyle = "#dfe3da"; g.beginPath(); g.moveTo(30, 8); g.lineTo(30, h - 18); g.lineTo(w - 10, h - 18); g.stroke();
-  g.fillStyle = "#5d6b5d"; g.font = "11px system-ui"; g.textAlign = "right";
-  g.fillText(hi.toFixed(0), 26, 14); g.fillText(lo.toFixed(0), 26, h - 18);
-  g.fillStyle = "rgba(192,57,43,.35)";
-  o.tried.forEach((v, i) => { g.beginPath(); g.arc(X(i), Y(v), 2, 0, 2 * Math.PI); g.fill(); });
-  g.strokeStyle = "#2f7d32"; g.lineWidth = 2; g.beginPath();
-  o.history.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))); g.stroke();
-}
-$("btn-opt").onclick = startOpt;
-$("btn-stop").onclick = stopOpt;
+function setRunning(on){st.running=on;$('#play').textContent=on?'❚❚ Pause':(st.done?'▶ Relancer':'▶ Lancer')}
 
-// ---------------------------------------------------------------------------
-// Language & init
-// ---------------------------------------------------------------------------
-function applyLang(l) {
-  lang = l; document.documentElement.lang = l; document.title = t("title");
-  $("lang-fr").classList.toggle("on", l === "fr"); $("lang-en").classList.toggle("on", l === "en");
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    const v = I18N[l][el.dataset.i18n]; if (typeof v === "string") el.innerHTML = v;
-  });
-  $("btn-run").textContent = running ? t("pause") : t("run");
-  const gs = $("garden"), cur = gardenKey; gs.innerHTML = "";
-  for (const k of Object.keys(GARDENS)) { const o = document.createElement("option"); o.value = k; o.textContent = t("g_" + k); gs.appendChild(o); }
-  gs.value = cur;
-  buildSliders();
-  $("eval-result").textContent = "";
-  if (lastOpt && !opt) $("opt-result").innerHTML = t("optRes")(lastOpt.iter, lastOpt.bestScore, lastOpt.start) + t("optDone");
-  if (sim) draw(sim);
+/* =====================================================================
+   Dessin
+   ===================================================================== */
+function fitCanvas(cv,h){
+  const dpr=window.devicePixelRatio||1;if(h)cv.style.height=h+'px';const r=cv.getBoundingClientRect();
+  const H=h||r.height;cv.width=Math.round(r.width*dpr);cv.height=Math.round(H*dpr);
+  const ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);return{ctx,w:r.width,h:H,cv};
 }
-$("lang-fr").onclick = () => applyLang("fr");
-$("lang-en").onclick = () => applyLang("en");
-const urlLang = new URLSearchParams(location.search).get("lang");
-applyLang(urlLang === "en" ? "en" : "fr");
-resetSim();
+let VIEW,MINI,ARCHI,CHART;
+const ARCHI_H={1:240,2:390,3:470};
+function resizeAll(){
+  VIEW=fitCanvas($('#view'));MINI=fitCanvas($('#mini'));ARCHI=fitCanvas($('#archi'),ARCHI_H[st.step]);
+  if(st.step===3){CHART=fitCanvas($('#chart'));drawChart()}
+}
+function arrow(ctx,x1,y1,x2,y2,head=9){
+  ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();const a=Math.atan2(y2-y1,x2-x1);
+  ctx.beginPath();ctx.moveTo(x2,y2);ctx.lineTo(x2-head*Math.cos(a-.45),y2-head*Math.sin(a-.45));ctx.lineTo(x2-head*Math.cos(a+.45),y2-head*Math.sin(a+.45));ctx.closePath();ctx.fill();
+}
+function label(ctx,t,x,y,col){const w=ctx.measureText(t).width,al=ctx.textAlign;const x0=al==='right'?x-w:al==='center'?x-w/2:x;
+  ctx.fillStyle='rgba(255,255,255,.86)';ctx.beginPath();ctx.roundRect(x0-6,y-14,w+12,28,6);ctx.fill();ctx.fillStyle=col;ctx.fillText(t,x,y)}
+function sensColor(s,al=1){return`rgba(${Math.round(240-10*s)},${Math.round(200-120*s)},${Math.round(60-40*s)},${al})`}
+
+// ---------- vue subjective ----------
+function drawPOV(V,W,R,P,level){
+  const{ctx,w,h}=V,S=Math.min(w,h*1.25)/3.4,cx=w/2,cy=h*.66;
+  const phi=Math.PI/2-R.th,c=Math.cos(phi),s=Math.sin(phi);
+  const T=(x,y)=>{const dx=x-R.x,dy=y-R.y;return[cx+(dx*c-dy*s)*S,cy-(dx*s+dy*c)*S]};
+  ctx.fillStyle='#eef0e6';ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='#d9ddcc';ctx.lineWidth=1;const span=6,g=.5;
+  for(let k=Math.floor((R.x-span)/g);k<=Math.ceil((R.x+span)/g);k++){const[a1,b1]=T(k*g,R.y-span),[a2,b2]=T(k*g,R.y+span);ctx.beginPath();ctx.moveTo(a1,b1);ctx.lineTo(a2,b2);ctx.stroke()}
+  for(let k=Math.floor((R.y-span)/g);k<=Math.ceil((R.y+span)/g);k++){const[a1,b1]=T(R.x-span,k*g),[a2,b2]=T(R.x+span,k*g);ctx.beginPath();ctx.moveTo(a1,b1);ctx.lineTo(a2,b2);ctx.stroke()}
+  ctx.lineCap='round';ctx.strokeStyle='#8b8f88';ctx.lineWidth=.1*S;
+  for(const sg of W.segs){const[a1,b1]=T(sg.x1,sg.y1),[a2,b2]=T(sg.x2,sg.y2);ctx.beginPath();ctx.moveTo(a1,b1);ctx.lineTo(a2,b2);ctx.stroke()}
+  for(const side of[1,-1]){
+    const p=sensorPose(R,side,P),d=side===1?R.dL:R.dR,v=side===1?R.sL:R.sR;
+    const[x0,y0]=T(p.x,p.y),[xe,ye]=T(p.x+Math.cos(p.a)*RB.range,p.y+Math.sin(p.a)*RB.range),[xh,yh]=T(p.x+Math.cos(p.a)*d,p.y+Math.sin(p.a)*d);
+    ctx.setLineDash([6,6]);ctx.strokeStyle='rgba(224,90,43,.35)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(xe,ye);ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle=sensColor(v,.35+.65*v);ctx.lineWidth=4+6*v;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(xh,yh);ctx.stroke();
+    if(d<RB.range){ctx.fillStyle='#e05a2b';ctx.beginPath();ctx.arc(xh,yh,7,0,7);ctx.fill()}
+  }
+  const r=RB.r*S,ax=RB.axle/2*S;
+  ctx.save();ctx.translate(cx,cy);
+  ctx.fillStyle='#2d3748';for(const sx of[-1,1])ctx.fillRect(sx*ax-.04*S,-.1*S,.08*S,.2*S);
+  ctx.fillStyle='#c0392b';ctx.strokeStyle='#5e1a13';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#fff';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(0,-r);ctx.stroke();
+  if(level>=2){ctx.strokeStyle=R.bumpFlash>0||R.bump?'#e53e3e':'#4a5568';ctx.lineWidth=R.bumpFlash>0?10:7;ctx.beginPath();ctx.arc(0,0,r+.035*S,-Math.PI*.82,-Math.PI*.18);ctx.stroke()}
+  ctx.lineWidth=7;
+  for(const[sx,m]of[[-1,R.mL],[1,R.mR]]){const col=m>=0?'#2f855a':'#c53030';ctx.strokeStyle=col;ctx.fillStyle=col;const len=m/3*.6*S;if(Math.abs(len)>4)arrow(ctx,sx*(ax+.12*S),0,sx*(ax+.12*S),-len,16)}
+  ctx.restore();
+  ctx.font='700 20px system-ui';ctx.textBaseline='middle';
+  for(const side of[1,-1]){const v=side===1?R.sL:R.sR;ctx.textAlign=side===1?'right':'left';label(ctx,`capteur ${side===1?'G':'D'} = ${v.toFixed(2)}`,cx-side*.62*S,cy-.42*S,'#9a3412')}
+  for(const[sx,m,n]of[[-1,R.mL,'G'],[1,R.mR,'D']]){ctx.textAlign=sx<0?'right':'left';label(ctx,`moteur ${n} = ${fmt(m)}`,cx+sx*(ax+.24*S),cy+.06*S,m>=0?'#22543d':'#9b2c2c')}
+}
+// ---------- vue de dessus (minicarte et pelouse de l'étape 2) ----------
+const grassCanvas=document.createElement('canvas');
+function grassImage(G){
+  if(grassCanvas.width!==G.nx||grassCanvas.height!==G.ny){grassCanvas.width=G.nx;grassCanvas.height=G.ny}
+  const gx=grassCanvas.getContext('2d'),img=gx.createImageData(G.nx,G.ny),d=img.data;
+  for(let j=0;j<G.ny;j++)for(let i=0;i<G.nx;i++){const k=j*G.nx+i,o=((G.ny-1-j)*G.nx+i)*4,n=G.noise[k]*14,c=G.cnt[k];let col;
+    if(c===0)col=[60+n,140+n,55+n*.5];else if(c===1)col=[166,214,138];else if(c===2)col=[222,226,140];else if(c===3)col=[240,200,110];else col=[236,150,90];
+    d[o]=col[0];d[o+1]=col[1];d[o+2]=col[2];d[o+3]=255}
+  gx.putImageData(img,0,0);return grassCanvas;
+}
+function drawTop(V,W,R,o={}){
+  const{ctx,w,h}=V,b=W.bounds,m=o.margin??12,S=Math.min((w-2*m)/(b.x1-b.x0),(h-2*m)/(b.y1-b.y0));
+  const ox=(w-(b.x1-b.x0)*S)/2,oy=(h-(b.y1-b.y0)*S)/2,T=(x,y)=>[ox+(x-b.x0)*S,oy+(b.y1-y)*S];
+  ctx.clearRect(0,0,w,h);ctx.fillStyle='#eef0e6';ctx.fillRect(ox,oy,(b.x1-b.x0)*S,(b.y1-b.y0)*S);
+  if(W.grass){ctx.imageSmoothingEnabled=false;const G=W.grass;const[x0,y0]=T(G.x0,G.y0+G.ny*G.c);ctx.drawImage(grassImage(G),x0,y0,G.nx*G.c*S,G.ny*G.c*S)}
+  ctx.lineCap='round';ctx.strokeStyle='#6b6f68';ctx.lineWidth=Math.max(2,.08*S);
+  for(const sg of W.walls){const[a1,b1]=T(sg.x1,sg.y1),[a2,b2]=T(sg.x2,sg.y2);ctx.beginPath();ctx.moveTo(a1,b1);ctx.lineTo(a2,b2);ctx.stroke()}
+  if(o.trace&&R.trace.length>1){ctx.strokeStyle='rgba(192,57,43,.55)';ctx.lineWidth=1.5;ctx.beginPath();R.trace.forEach(([x,y],i)=>{const[a,bb]=T(x,y);i?ctx.lineTo(a,bb):ctx.moveTo(a,bb)});const[a,bb]=T(R.x,R.y);ctx.lineTo(a,bb);ctx.stroke()}
+  if(o.rays){const P=st.P();for(const side of[1,-1]){const p=sensorPose(R,side,P),d=side===1?R.dL:R.dR,v=side===1?R.sL:R.sR;const[x0,y0]=T(p.x,p.y),[x1,y1]=T(p.x+Math.cos(p.a)*d,p.y+Math.sin(p.a)*d);ctx.strokeStyle=v>0?'#e05a2b':'rgba(224,90,43,.35)';ctx.lineWidth=v>0?2.5:1.5;ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke()}}
+  const[x,y]=T(R.x,R.y),rr=Math.max(4,RB.r*S);
+  ctx.fillStyle='#c0392b';ctx.strokeStyle=R.bumpFlash>0?'#ffd700':'#5e1a13';ctx.lineWidth=R.bumpFlash>0?3:1.5;ctx.beginPath();ctx.arc(x,y,rr,0,7);ctx.fill();ctx.stroke();
+  ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(R.th)*rr,y-Math.sin(R.th)*rr);ctx.stroke();
+}
+// ---------- étape 3 : dessin de la simulation d'origine ----------
+const off=document.createElement('canvas');off.width=COLS;off.height=ROWS;
+const offCtx=off.getContext('2d'),img3=offCtx.createImageData(COLS,ROWS);
+const GRASS_RGB=[[63,143,58],[58,135,54],[68,150,62]],CUT_RGB=[[166,214,138],[158,206,130]];
+let fullPaint=true;
+function paintAll(sim){for(let idx=0;idx<sim.grid.length;idx++){const i=idx%COLS,j=(idx/COLS)|0,o=idx*4,g=sim.grid[idx];const col=g===1?GRASS_RGB[(i*7+j*13)%3]:g===2?CUT_RGB[(i+j)%2]:[120,100,80];img3.data[o]=col[0];img3.data[o+1]=col[1];img3.data[o+2]=col[2];img3.data[o+3]=255}}
+function drawSim(V,sim){
+  const{ctx,w,h}=V,m=10,sc=Math.min((w-2*m)/SW,(h-2*m)/SH),ox=(w-SW*sc)/2,oy=(h-SH*sc)/2;
+  ctx.clearRect(0,0,w,h);
+  paintAll(sim);offCtx.putImageData(img3,0,0);
+  ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);
+  ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,SW,SH);
+  for(const o of sim.obs){
+    if(o.type==="circle"){ctx.fillStyle="#24572a";ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,2*Math.PI);ctx.fill();ctx.fillStyle="#2f6e35";ctx.beginPath();ctx.arc(o.x-o.r*.25,o.y-o.r*.25,o.r*.55,0,2*Math.PI);ctx.fill()}
+    else{ctx.fillStyle=o.kind==="wall"?"#8b8f88":"#9c6b45";ctx.fillRect(o.x,o.y,o.w,o.h)}
+  }
+  const s=sim.sensors;
+  if(s){
+    for(const[a,v]of[[s.aL,s.oL],[s.aR,s.oR]]){ctx.strokeStyle=v>0?"#e05a2b":"rgba(224,90,43,.35)";ctx.lineWidth=v>0?2.5:1.5;ctx.beginPath();ctx.moveTo(sim.x+Math.cos(a)*R3,sim.y+Math.sin(a)*R3);ctx.lineTo(sim.x+Math.cos(a)*(R3+RANGE),sim.y+Math.sin(a)*(R3+RANGE));ctx.stroke()}
+    for(const[a,v]of[[s.aL,s.gL],[s.aR,s.gR]]){ctx.fillStyle=v?"#ffe14d":"rgba(255,225,77,.35)";ctx.beginPath();ctx.arc(sim.x+Math.cos(a)*(R3+GRASS_D),sim.y+Math.sin(a)*(R3+GRASS_D),3.5,0,2*Math.PI);ctx.fill()}
+  }
+  ctx.fillStyle="#c0392b";ctx.strokeStyle=st.flash>0?"#ffd700":"#5e1a13";ctx.lineWidth=st.flash>0?3:1.5;ctx.beginPath();ctx.arc(sim.x,sim.y,R3,0,2*Math.PI);ctx.fill();ctx.stroke();
+  ctx.strokeStyle="#fff";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(sim.x,sim.y);ctx.lineTo(sim.x+Math.cos(sim.a)*R3,sim.y+Math.sin(sim.a)*R3);ctx.stroke();
+  ctx.restore();
+}
+
+/* =====================================================================
+   Architecture interne (schéma animé)
+   ===================================================================== */
+function agentState(){
+  // valeurs communes aux 3 étapes, normalisées pour l'affichage
+  if(st.step===3){const sim=st.sim,s=sim.sensors||{oL:0,oR:0,gL:0,gR:0};
+    return{sG:s.oL,sD:s.oR,gG:s.gL,gD:s.gR,mL:sim.mL,mR:sim.mR,rawL:sim.rawL,rawR:sim.rawR,bump:st.flash>0,cruise:st.flash<=0,phase:''}}
+  const R=st.R;return{sG:R.sL,sD:R.sR,gG:0,gD:0,mL:R.mL,mR:R.mR,rawL:R.rawL,rawR:R.rawR,bump:R.bump||R.bumpFlash>0,cruise:R.state==='CRUISE',phase:R.phase,cause:R.cause,turnDir:R.turnDir};
+}
+function drawArchi(){
+  const L=st.step,{ctx,w,h}=ARCHI,p=st.P(),A=agentState();
+  ctx.clearRect(0,0,w,h);
+  const xi=58,xo=w-58;let N,smY=null;
+  if(L===1)N={sG:[xi,40],base:[xi,118],sD:[xi,196],mG:[xo,66],mD:[xo,170]};
+  else if(L===2){N={sG:[xi,40],base:[xi,118],sD:[xi,196],mG:[xo,66],mD:[xo,170],bump:[xi,310]};smY=310}
+  else{N={sG:[xi,44],gG:[xi,104],base:[xi,164],gD:[xi,224],sD:[xi,284],mG:[xo,114],mD:[xo,214],bump:[xi,410]};smY=410}
+  const val={sG:A.sG,sD:A.sD,gG:A.gG,gD:A.gD,base:1,bump:A.bump?1:0,mG:A.mL,mD:A.mR};
+  const E=[['sG','mG',p.obsSame,'même'],['sD','mD',p.obsSame,'même'],['sG','mD',p.obsCross,'opposé'],['sD','mG',p.obsCross,'opposé'],['base','mG',p.base,'base'],['base','mD',p.base,'base']];
+  if(L===3)E.push(['gG','mG',p.grassSame,'même'],['gD','mD',p.grassSame,'même'],['gG','mD',p.grassCross,'opposé'],['gD','mG',p.grassCross,'opposé']);
+  const NR=22;ctx.textAlign='center';ctx.textBaseline='middle';
+  for(const[f,t,wt,lab]of E){
+    const[x1,y1]=N[f],[x2,y2]=N[t],act=f==='base'?.6:val[f],zero=Math.abs(wt)<.01;
+    const alpha=A.cruise?(zero?.12:.25+.7*act):.1;
+    ctx.strokeStyle=wt>=0?`rgba(43,108,176,${alpha})`:`rgba(197,48,48,${alpha})`;
+    ctx.lineWidth=zero?1:1.3+2.7*Math.min(1,Math.abs(wt)/2);if(zero)ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(x1+NR,y1);ctx.lineTo(x2-NR,y2);ctx.stroke();ctx.setLineDash([]);
+    if(L===3)continue; // étape 3 : trop de liaisons pour les étiqueter, les poids sont lus sur les curseurs
+    const tt=f==='base'?.72:f[0]==='g'?.24:.34,lx=x1+NR+(x2-x1-2*NR)*tt,ly=y1+(y2-y1)*tt;
+    ctx.font='600 11.5px system-ui';const txt=`${lab} ${fmt(wt)}`,tw=ctx.measureText(txt).width+8;
+    ctx.fillStyle='rgba(255,255,255,.93)';ctx.fillRect(lx-tw/2,ly-9,tw,18);ctx.fillStyle=wt>=0?'#2b6cb0':'#c53030';ctx.fillText(txt,lx,ly);
+  }
+  const names={sG:'obstacle G',sD:'obstacle D',gG:'herbe G',gD:'herbe D',base:'base',bump:'pare-choc',mG:'moteur G',mD:'moteur D'};
+  for(const k in N){
+    const[x,y]=N[k],v=val[k];let fill;
+    if(k[0]==='m')fill=v>=0?`rgba(47,133,90,${.15+.85*Math.min(1,v/3)})`:`rgba(197,48,48,${.15+.85*Math.min(1,-v/3)})`;
+    else if(k==='base')fill='#cbd5e0';else if(k==='bump')fill=v?'#e53e3e':'#fff';
+    else if(k[0]==='g')fill=v?'#ffe14d':'#fffbea';else fill=sensColor(v,.15+.85*v);
+    ctx.fillStyle=fill;ctx.strokeStyle='#2d3748';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,NR,0,7);ctx.fill();ctx.stroke();
+    ctx.fillStyle=(k==='bump'&&v)||(k[0]==='m'&&Math.abs(v)>1.8)?'#fff':'#1a202c';ctx.font='700 12px system-ui';
+    ctx.fillText(k==='base'?'1':k==='bump'||k[0]==='g'?String(v):fmt(v),x,y);
+    ctx.fillStyle='#4a5568';ctx.font='600 11.5px system-ui';ctx.fillText(names[k],x,y+NR+9);
+  }
+  ctx.fillStyle='#718096';ctx.font='600 11px system-ui';ctx.fillText('ENTRÉES',xi,10);ctx.fillText('SORTIES',xo,10);
+  if(L===3){ctx.fillStyle='#4a5568';ctx.font='600 11px system-ui';ctx.fillText(`+ bruit au hasard (±${p.noise.toFixed(2)})`,xo-30,N.mD[1]+44);ctx.fillText('épaisseur = |poids| · bleu = positif · rouge = négatif',w/2,N.sD[1]+46)}
+  if(L===2&&!A.cruise){ctx.fillStyle='rgba(197,48,48,.9)';ctx.font='700 13px system-ui';ctx.fillText('IMPASSE : le réseau est ignoré',w/2,118)}
+  if(smY){
+    const y=smY,bw=Math.min(104,w*.28),bh=40,c1=w*.47,c2=w*.8;
+    ctx.strokeStyle='#cbd5e0';ctx.setLineDash([3,4]);ctx.beginPath();ctx.moveTo(10,y-62);ctx.lineTo(w-10,y-62);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#718096';ctx.font='600 11px system-ui';ctx.fillText(L===3?'RÉFLEXE DU PARE-CHOC (ÉTATS DE L\'ÉTAPE 2)':'MACHINE À ÉTATS',w/2,y-50);
+    const box=(cx,lab,sub,on)=>{ctx.fillStyle=on?'#d9822b':'#fff';ctx.strokeStyle=on?'#9c4221':'#4a5568';ctx.lineWidth=2;ctx.beginPath();ctx.roundRect(cx-bw/2,y-bh/2,bw,bh,9);ctx.fill();ctx.stroke();
+      ctx.fillStyle=on?'#fff':'#2d3748';ctx.font='700 13px system-ui';ctx.fillText(lab,cx,sub?y-7:y);if(sub){ctx.font='600 10.5px system-ui';ctx.fillText(sub,cx,y+9)}};
+    box(c1,'CRUISE','réseau',A.cruise);
+    box(c2,'IMPASSE',L===3?'recul, tour 90–180°':(A.cruise?'recul → rotation':A.phase),!A.cruise);
+    ctx.strokeStyle='#4a5568';ctx.fillStyle='#4a5568';ctx.lineWidth=1.8;
+    arrow(ctx,c1+bw/2,y-11,c2-bw/2,y-11,7);arrow(ctx,c2-bw/2,y+11,c1+bw/2,y+11,7);
+    ctx.font='600 10.5px system-ui';ctx.fillStyle='#4a5568';
+    ctx.fillText(L===3?'choc':'choc ou bloqué',(c1+c2)/2,y-28);ctx.fillText(L===3?'aussitôt':'rotation finie',(c1+c2)/2,y+28);
+    ctx.strokeStyle=val.bump?'#e53e3e':'#a0aec0';ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(xi+NR,y);ctx.lineTo(c1-bw/2-4,y);ctx.stroke();ctx.setLineDash([]);
+  }
+}
+
+/* =====================================================================
+   Valeurs en direct
+   ===================================================================== */
+function updateReadouts(){
+  const L=st.step,p=st.P(),A=agentState();
+  let rows=`<tr><td>Capteurs d'obstacle G / D</td><td class="v">${A.sG.toFixed(2)} / ${A.sD.toFixed(2)}</td></tr>`;
+  if(L===3)rows+=`<tr><td>Capteurs d'herbe haute G / D</td><td class="v">${A.gG} / ${A.gD}</td></tr>`;
+  if(L===2)rows+=`<tr><td>Pare-choc</td><td class="v" style="color:${A.bump?'#c53030':'inherit'}">${A.bump?'CHOC':'0'}</td></tr><tr><td>État</td><td class="v">${A.cruise?'CRUISE':'IMPASSE ('+A.phase+')'}</td></tr>`;
+  rows+=`<tr><td>Moteurs G / D</td><td class="v">${fmt(A.mL)} / ${fmt(A.mR)}</td></tr>`;
+  const lim=v=>Math.abs(v)>3?` → limité à ${fmt(clamp(v,-3,3))}`:'';
+  let f;
+  if(L===2&&!A.cruise){f=A.phase==='recul'?`IMPASSE (${A.cause}) : recul pendant ${p.recul.toFixed(1)} s\nmoteurG = moteurD = −1.80`:`IMPASSE : rotation de ${p.rot}° vers ${A.turnDir>0?'la gauche':'la droite'}\n(côté le moins encombré, au hasard si égalité)`}
+  else if(L<3){
+    f=`mG = base + même×oG + opposé×oD\n   = ${p.base.toFixed(2)} + ${fmt(p.obsSame)}×${A.sG.toFixed(2)} + ${fmt(p.obsCross)}×${A.sD.toFixed(2)} = ${fmt(A.rawL)}${lim(A.rawL)}\n`+
+      `mD = base + même×oD + opposé×oG\n   = ${p.base.toFixed(2)} + ${fmt(p.obsSame)}×${A.sD.toFixed(2)} + ${fmt(p.obsCross)}×${A.sG.toFixed(2)} = ${fmt(A.rawR)}${lim(A.rawR)}\n(o = capteur d'obstacle, m = moteur)`;
+  }else{
+    const line=(n,o1,o2,g1,g2,raw)=>`${n} = ${p.base.toFixed(2)} + ${fmt(p.obsSame)}×${o1.toFixed(2)} + ${fmt(p.obsCross)}×${o2.toFixed(2)} + ${fmt(p.grassSame)}×${g1} + ${fmt(p.grassCross)}×${g2} = ${fmt(raw)}`;
+    f=`mG = base + même×oG + opposé×oD + h-même×hG + h-opposé×hD + bruit\nmD = base + même×oD + opposé×oG + h-même×hD + h-opposé×hG + bruit\n(o = capteur d'obstacle, h = capteur d'herbe haute)\n${line('mG',A.sG,A.sD,A.gG,A.gD,A.rawL)}\n${line('mD',A.sD,A.sG,A.gD,A.gG,A.rawR)}\npuis bruit et limite à ±3 → ${fmt(A.mL)} / ${fmt(A.mR)}`;
+  }
+  $('#readouts').innerHTML=`<table class="ro">${rows}</table><div class="formula">${f}</div>`;
+  let hud='',badge='',bc='#c53030';
+  if(L===3){const sim=st.sim;hud=`Pas : ${sim.steps} / ${STEPS}<br>Surface tondue : <b>${coverage3(sim).toFixed(1)} %</b><br>Collisions : ${sim.collisions}<br>Fitness de cette partie = ${coverage3(sim).toFixed(1)} − ${penalty().toFixed(2)} × ${sim.collisions} = <b>${scoreOf(sim,penalty()).toFixed(1)}</b>`;
+    if(st.done){badge=`Temps écoulé — fitness ${scoreOf(sim,penalty()).toFixed(1)}`;bc='#2d3748'}}
+  else{const R=st.R,W=st.W;
+    if(W.grass){hud=`t = ${R.t.toFixed(0)} s / ${st.dur} s<br>Pelouse tondue : <b>${coverageM(W).toFixed(1)} %</b><br>Temps sur herbe déjà tondue : <b>${R.moving>0?(100*R.wasted/R.moving).toFixed(0):0} %</b><br>Chocs : ${R.bumps}`;if(st.done){badge='Terminé (3 min)';bc='#2d3748'}}
+    else hud=`t = ${R.t.toFixed(1)} s`;
+    if(L===1){if(R.bump)badge='💥 BLOQUÉ — et il ne le sait pas';else if(R.stillSince>1.5)badge='⏸ Immobile'}
+    else if(!W.grass&&!A.cruise){badge=R.cause==='choc'?'💥 Choc détecté → IMPASSE':'⏳ Blocage détecté → IMPASSE';bc='#d9822b'}}
+  $('#hud').innerHTML=hud;const B=$('#badge');B.textContent=badge;B.style.background=bc;
+}
+
+/* =====================================================================
+   Interface
+   ===================================================================== */
+function buildSliders(){
+  const s=st.step,box=$('#sliders');box.innerHTML='';
+  for(const k of LEVEL_PARAMS[s]){
+    const sp=PSPEC[k],d=document.createElement('div');d.className='slider';
+    d.innerHTML=`<label>${sp.label}</label><output></output><input type="range" min="${sp.min}" max="${sp.max}" step="${sp.step}">`;
+    const inp=d.querySelector('input'),out=d.querySelector('output');
+    inp.value=PARAMS[s][k];out.textContent=pfmt(k,+inp.value);
+    inp.oninput=()=>{PARAMS[s][k]=+inp.value;out.textContent=pfmt(k,+inp.value)};
+    box.appendChild(d);
+  }
+  const pr=$('#presets');pr.innerHTML='';
+  const add=(t,fn)=>{const b=document.createElement('button');b.textContent=t;b.onclick=fn;pr.appendChild(b);return b};
+  if(s<3)for(const[n,v]of PRESETS)add(n,()=>{Object.assign(PARAMS[s],v);buildSliders();loadScenario();setRunning(true)});
+  if(s===3)add('🎲 Valeurs au hasard',()=>{for(const k of LEVEL_PARAMS[3]){const p=PSPEC[k];PARAMS[3][k]=+(Math.round((p.min+Math.random()*(p.max-p.min))/p.step)*p.step).toFixed(3)}buildSliders()});
+  add('Valeurs initiales',()=>{PARAMS[s]={...DEFAULTS[s]};buildSliders()});
+}
+function buildScenarios(){
+  const box=$('#scenarios');box.innerHTML='';
+  for(const[k,n]of SCEN[st.step]){const b=document.createElement('button');b.textContent=n;b.className=k===st.scen?'on':'';b.onclick=()=>{st.scen=k;buildScenarios();setupSpeed();loadScenario()};box.appendChild(b)}
+  if(st.step===3){const b=document.createElement('button');b.textContent='Nouvelle position de départ';b.onclick=()=>{st.seed=1+Math.floor(Math.random()*1e6);loadScenario()};box.appendChild(b)}
+}
+function setupSpeed(){
+  const sp=$('#speed');let cfg;
+  if(st.step===3)cfg=[1,100,1,5];else if(st.step===2&&st.scen==='pelouse')cfg=[1,40,1,10];else cfg=[.25,3,.25,1];
+  sp.min=cfg[0];sp.max=cfg[1];sp.step=cfg[2];sp.value=cfg[3];st.speed=cfg[3];$('#speedOut').textContent='×'+cfg[3];
+}
+$('#speed').oninput=e=>{st.speed=+e.target.value;$('#speedOut').textContent='×'+st.speed};
+$('#play').onclick=()=>{if(st.done)loadScenario();setRunning(!st.running)};
+$('#reset').onclick=()=>loadScenario();
+$('#penalty').oninput=()=>$('#penaltyOut').textContent=penalty().toFixed(2);$('#penaltyOut').textContent=penalty().toFixed(2);
+$('#evalBtn').onclick=()=>{$('#evalRes').textContent='…';setTimeout(()=>{const r=evaluate3(PARAMS[3],st.scen,penalty());$('#evalRes').innerHTML=`Fitness moyenne : <b>${r.score.toFixed(1)}</b> (tonte ${r.cov.toFixed(1)} %, ${r.col.toFixed(0)} collisions en moyenne)`},20)};
+
+const NOTES={
+1:`<h2>Étape 1 — Un agent purement réactif</h2>
+<p>Vue <b>subjective</b> en très gros plan : la caméra est fixée sur le robot, c'est le monde qui défile. L'agent n'a que <b>deux capteurs d'obstacle</b> (0 = rien à portée, 1 = contact) et <b>deux moteurs de roue</b> (de −3, marche arrière, à +3, plein avant). Il n'a ni mémoire ni carte : à chaque instant, chaque moteur est calculé à partir des capteurs avec <b>4 paramètres</b>.</p>
+<div class="formula">moteurG = base + même × capteurG + opposé × capteurD      moteurD = base + même × capteurD + opposé × capteurG</div>
+<h4>À essayer</h4>
+<ul><li><b>Obstacle sur le côté</b> : avec quel signe des poids « même côté » et « côté opposé » le robot s'écarte-t-il ? Testez les 4 véhicules de Braitenberg (boutons de préréglage).</li>
+<li><b>Obstacle en face</b> : les deux capteurs lisent la même valeur, donc les deux moteurs reçoivent la même commande. Peut-il tourner ? Au mieux il s'arrête (essayez des poids négatifs).</li>
+<li><b>Coin en face</b> : en tournant pour fuir un mur, il se rapproche de l'autre. Il oscille ou se coince. L'angle des capteurs y change-t-il quelque chose ?</li></ul>
+<div class="concl"><b>Conclusion.</b> Avec 4 curseurs on règle de bons réflexes, mais certaines situations sont <b>indiscernables</b> pour l'agent : il ne sait pas qu'il touche un obstacle ni qu'il est bloqué. Il lui faut <b>plus d'information, donc plus de capteurs</b>.</div>`,
+2:`<h2>Étape 2 — Pare-choc et états</h2>
+<p>On ajoute un <b>pare-choc</b> (capteur de contact) et un détecteur de blocage (le robot n'a pas bougé depuis 2,5 s). L'agent a maintenant deux <b>états</b> :</p>
+<ul><li><b>CRUISE</b> : le réseau de l'étape 1 pilote les moteurs ;</li>
+<li><b>IMPASSE</b> : déclenchée par un choc ou un blocage. Le robot recule, tourne d'un angle fixé du côté le moins encombré (au hasard en cas d'égalité), puis repasse en CRUISE.</li></ul>
+<h4>À essayer</h4>
+<ul><li>Rejouez <b>en face</b> et <b>coin</b> : il s'en sort. Que se passe-t-il avec une rotation de 10° ? de 180° ?</li>
+<li><b>Pelouse (3 min)</b> : vert foncé = herbe haute, vert clair = tondu une fois, jaune puis orange = repassé 2, 3, 4 fois et plus. Regardez le temps passé sur de l'herbe déjà tondue, et la zone du haut à gauche.</li></ul>
+<div class="concl"><b>Conclusion.</b> Le robot ne se coince plus, mais il tond <b>au hasard</b> : il repasse sans cesse au même endroit et laisse des zones entières d'herbe haute, car il ne voit pas l'herbe. Il lui faut un <b>capteur d'herbe haute</b>.</div>`,
+3:`<h2>Étape 3 — Le jardin : fitness et optimisation</h2>
+<p>On ajoute deux <b>capteurs d'herbe haute</b> (points jaunes, juste devant le robot), avec leurs propres poids vers les moteurs, et un peu de <b>hasard</b> sur les moteurs. Le pare-choc garde le réflexe de l'étape 2 : petit recul et rotation au hasard de 90° à 180°. Il y a maintenant <b>7 paramètres</b> : on ne peut plus tout régler à l'intuition.</p>
+<h4>a. Régler à la main</h4>
+<p>Chacun essaie de tondre le plus possible. Un poids « obstacle → même côté » positif fait éviter les arbres ; un poids « herbe haute → côté opposé » positif fait aller vers l'herbe non tondue.</p>
+<h4>b. Mesurer : la fitness</h4>
+<div class="formula">fitness = surface tondue (%) − pénalité × nombre de collisions   (moyenne sur 3 départs, 4000 pas)</div>
+<p>« Bien tondre » devient un nombre. Débat : que se passe-t-il avec une pénalité nulle ? Pourquoi faire la moyenne sur plusieurs départs ?</p>
+<h4>c. Chercher au hasard</h4>
+<p>« 🎲 Valeurs au hasard », puis « Calculer la fitness » : on recommence et on garde le meilleur. La <b>recherche aléatoire</b> automatise ce geste. Elle progresse, mais chaque essai repart de zéro.</p>
+<h4>d. Métaheuristiques : réutiliser ce qui marche</h4>
+<ul><li><b>Recherche locale (escalade)</b> : on part des réglages actuels, on en modifie quelques-uns un peu, on garde si la fitness ne baisse pas.</li>
+<li><b>Recuit simulé</b> : idem, mais au début on accepte parfois moins bien, pour ne pas rester coincé sur un « petit sommet ».</li>
+<li><b>Génétique</b> : une population de 10 réglages ; les meilleurs se reproduisent (croisement des paramètres + mutations).</li></ul>
+<p>Comparez les courbes à budget égal (points = chaque essai, ligne = meilleur trouvé jusque-là), puis chargez le meilleur robot et regardez-le tondre.</p>
+<div class="concl"><b>À discuter.</b> La machine optimise exactement ce qu'on mesure, pas ce qu'on voulait dire. Surapprentissage : optimisez dans le verger, puis testez dans les couloirs. Les poids trouvés sont-ils interprétables ? Qui a « programmé » le comportement final ?</div>`
+};
+
+function setStep(s){
+  if(optRun){optRun=null;$('#optGo').disabled=false}
+  st.step=s;st.scen=SCEN[s][0][0];
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',+b.dataset.step===s));
+  $('#notes').innerHTML=NOTES[s];$('#optcard').style.display=s===3?'block':'none';
+  buildScenarios();buildSliders();setupSpeed();loadScenario();resizeAll();
+  try{history.replaceState(null,'','#etape-'+s)}catch(e){}
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>setStep(+b.dataset.step));
+
+/* =====================================================================
+   Optimisation : aléatoire, recherche locale, recuit, génétique
+   ===================================================================== */
+const OPT_KEYS=LEVEL_PARAMS[3];
+const METHODS={random:['Aléatoire','#718096'],hill:['Recherche locale','#d9822b'],anneal:['Recuit simulé','#805ad5'],genetic:['Génétique','#2f7d32']};
+const encode=p=>OPT_KEYS.map(k=>(p[k]-PSPEC[k].min)/(PSPEC[k].max-PSPEC[k].min));
+function decode(z){const p={};OPT_KEYS.forEach((k,i)=>{const s=PSPEC[k];let v=s.min+z[i]*(s.max-s.min);v=Math.round(clamp(v,s.min,s.max)/s.step)*s.step;p[k]=+v.toFixed(3)});return p}
+// mutation comme dans la version d'origine : environ la moitié des paramètres, pas gaussien de 15 % de l'étendue
+const mutate=(z,sig=.15)=>z.map(v=>Math.random()<.5?v:clamp(v+gauss()*sig,0,1));
+function makeOptimizer(method,budget,startZ){
+  const n=OPT_KEYS.length,randZ=()=>Array.from({length:n},Math.random);
+  if(method==='random')return{ask:randZ,tell(){}};
+  if(method==='hill'){let cur=null,cf=-Infinity;return{ask:()=>cur?mutate(cur):startZ,tell(z,f){if(f>=cf){cur=z;cf=f}}}}
+  if(method==='anneal'){let cur=null,cf=-Infinity,i=0;return{ask:()=>cur?mutate(cur):startZ,tell(z,f){const T=8*Math.pow(.2/8,i/budget);i++;if(!cur||f>=cf||Math.random()<Math.exp((f-cf)/T)){cur=z;cf=f}}}}
+  const N=10;let elite=[],gen=[],queue=[startZ,...Array.from({length:N-1},randZ)];
+  const breed=()=>{const all=[...elite,...gen].sort((a,b)=>b.f-a.f).slice(0,N);elite=all.slice(0,2);gen=[];
+    const tour=()=>{let best=null;for(let k=0;k<3;k++){const c=all[Math.floor(Math.random()*all.length)];if(!best||c.f>best.f)best=c}return best};
+    queue=Array.from({length:N-2},()=>{const p1=tour(),p2=tour();return p1.z.map((v,i)=>{let x=Math.random()<.5?v:p2.z[i];if(Math.random()<.3)x=clamp(x+gauss()*.15,0,1);return x})})};
+  return{ask(){if(!queue.length)breed();return queue.shift()},tell(z,f){gen.push({z,f})}};
+}
+const runs=[];let optRun=null;
+$('#budget').oninput=e=>{$('#budgetOut').textContent=e.target.value;drawChart()};$('#budgetOut').textContent=$('#budget').value;
+$('#optGo').onclick=()=>{
+  if(optRun)return;setRunning(false);
+  const method=$('#method').value,budget=+$('#budget').value,same=runs.filter(r=>r.method===method).length;
+  const gname={simple:'pelouse',trees:'verger',maze:'couloirs'}[st.scen];
+  const run={method,name:`${METHODS[method][0]}${same?' #'+(same+1):''} (${gname})`,color:METHODS[method][1],budget,pts:[],best:[],bestF:-Infinity,bestP:null,bestR:null,key:st.scen,pen:penalty()};
+  runs.push(run);optRun={run,O:makeOptimizer(method,budget,encode(PARAMS[3])),i:0};
+  $('#optGo').disabled=true;optTick();
+};
+$('#optStop').onclick=()=>{if(optRun){optRun=null;$('#optGo').disabled=false;updateOptStatus(true)}};
+$('#optClear').onclick=()=>{if(optRun)return;runs.length=0;drawChart();$('#bestBox').innerHTML='';$('#legend').innerHTML='';$('#optStatus').textContent='Les essais sont faits dans le jardin choisi, avec la pénalité ci-dessus.'};
+function optTick(){
+  if(!optRun)return;const{run,O}=optRun,t0=performance.now();
+  while(optRun.i<run.budget&&performance.now()-t0<40){
+    const z=O.ask(),p=decode(z),r=evaluate3(p,run.key,run.pen);O.tell(z,r.score);
+    run.pts.push(r.score);if(r.score>run.bestF){run.bestF=r.score;run.bestP=p;run.bestR=r}run.best.push(run.bestF);optRun.i++;
+  }
+  drawChart();updateOptStatus();
+  if(optRun.i>=run.budget){optRun=null;$('#optGo').disabled=false;updateOptStatus(true)}else setTimeout(optTick,0);
+}
+function loadBest(run){Object.assign(PARAMS[3],run.bestP);buildSliders();st.scen=run.key;buildScenarios();loadScenario();setRunning(true)}
+function updateOptStatus(final){
+  const run=runs[runs.length-1];if(!run)return;
+  $('#optStatus').innerHTML=`${run.name} : ${run.pts.length}/${run.budget} réglages évalués — meilleure fitness <b>${run.bestF.toFixed(1)}</b> (premier essai : ${run.pts[0].toFixed(1)})${final?'':' …'}`;
+  if(run.bestP){const p=run.bestP,r=run.bestR;
+    $('#bestBox').innerHTML=`<div class="best">Meilleur réglage : base ${p.base.toFixed(2)} · obstacle même ${fmt(p.obsSame)} · obstacle opposé ${fmt(p.obsCross)} · herbe même ${fmt(p.grassSame)} · herbe opposé ${fmt(p.grassCross)} · angle ${Math.round(p.angle)}° · bruit ${p.noise.toFixed(2)}<br>→ ${r.cov.toFixed(1)} % tondu, ${r.col.toFixed(0)} collisions en moyenne</div><div class="row"><button id="loadBest">Charger ce réglage et le regarder tondre</button></div>`;
+    $('#loadBest').onclick=()=>loadBest(run)}
+  $('#legend').innerHTML=runs.map(r=>`<span style="--c:${r.color}">${r.name} : ${r.bestF.toFixed(1)}</span>`).join('');
+}
+function drawChart(){
+  if(!CHART)return;const{ctx,w,h}=CHART;ctx.clearRect(0,0,w,h);
+  const ml=38,mr=8,mt=8,mb=36,pw=w-ml-mr,ph=h-mt-mb;
+  let xmax=Math.max(20,+$('#budget').value,...runs.map(r=>r.budget)),ymax=10,ymin=0;
+  for(const r of runs)for(const f of r.pts){if(f>ymax)ymax=f;if(f<ymin)ymin=f}
+  ymax=Math.ceil(ymax/10)*10;ymin=Math.floor(ymin/10)*10;const ys=(ymax-ymin)>80?20:10;
+  const X=i=>ml+i/xmax*pw,Y=f=>mt+(1-(f-ymin)/(ymax-ymin))*ph;
+  ctx.strokeStyle='#e2e8f0';ctx.fillStyle='#718096';ctx.font='11px system-ui';ctx.lineWidth=1;ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let f=ymin;f<=ymax;f+=ys){ctx.beginPath();ctx.moveTo(ml,Y(f));ctx.lineTo(w-mr,Y(f));ctx.stroke();ctx.fillText(f,ml-5,Y(f))}
+  ctx.textAlign='center';ctx.textBaseline='top';
+  const step=xmax<=100?20:xmax<=200?50:100;for(let i=0;i<=xmax;i+=step)ctx.fillText(i,X(i),h-mb+5);
+  ctx.fillText('réglages évalués',ml+pw/2,h-14);
+  ctx.save();ctx.translate(10,mt+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('fitness',0,-4);ctx.restore();
+  const last=runs[runs.length-1];
+  if(last){ctx.fillStyle=last.color+'66';last.pts.forEach((f,i)=>{ctx.beginPath();ctx.arc(X(i+1),Y(f),2.4,0,7);ctx.fill()})}
+  for(const r of runs){ctx.strokeStyle=r.color;ctx.lineWidth=r===last?3:2;ctx.globalAlpha=r===last?1:.7;ctx.beginPath();
+    r.best.forEach((f,i)=>{const x=X(i+1),y=Y(f);if(!i)ctx.moveTo(x,y);else{ctx.lineTo(x,Y(r.best[i-1]));ctx.lineTo(x,y)}});ctx.stroke();ctx.globalAlpha=1}
+}
+
+/* =====================================================================
+   Boucle principale
+   ===================================================================== */
+let lastT=performance.now(),frameN=0;
+function frame(now){
+  const fdt=Math.min(.1,(now-lastT)/1000);lastT=now;
+  if(st.step===3){
+    const sim=st.sim;
+    if(st.running&&!st.done){const c0=sim.collisions;for(let k=0;k<st.speed&&sim.steps<STEPS;k++)step3(sim,PARAMS[3]);if(sim.collisions>c0)st.flash=8;if(sim.steps>=STEPS){st.done=true;setRunning(false)}}
+    if(st.flash>0)st.flash--;
+    drawSim(VIEW,sim);
+  }else{
+    if(st.running&&!st.done){st.acc+=fdt*st.speed;let n=0;
+      while(st.acc>=DT&&n<600){stepRobot(st.R,st.W,st.P(),st.step,DT,st.rng);st.acc-=DT;n++;if(st.dur&&st.R.t>=st.dur-1e-9){st.done=true;setRunning(false);break}}}
+    if(st.view==='pov'){drawPOV(VIEW,st.W,st.R,st.P(),st.step);drawTop(MINI,st.W,st.R,{trace:true,margin:6})}
+    else drawTop(VIEW,st.W,st.R,{trace:true,rays:true});
+  }
+  drawArchi();
+  if(frameN++%3===0)updateReadouts();
+  requestAnimationFrame(frame);
+}
+window.addEventListener('resize',resizeAll);
+const h0=(location.hash.match(/etape-(\d)/)||[])[1];
+setStep(h0&&+h0>=1&&+h0<=3?+h0:1);
+requestAnimationFrame(frame);
 </script>
 </body>
 </html>
