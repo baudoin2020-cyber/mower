@@ -20,6 +20,20 @@ Valentino Braitenberg (*Vehicles: Experiments in Synthetic Psychology*, 1984), i
 
 Seven sliders control the robot's behaviour. Three gardens are available: a simple lawn, an orchard and corridors.
 
+## Introduction in three steps (French)
+
+The page now opens with a guided introduction before the garden simulation:
+
+1. **Reflexes** — a very zoomed, robot-centred view with only two obstacle sensors and two wheel motors, four sliders
+   and three cases (obstacle on the side, in front, corner in front). Conclusion: the agent needs more information.
+2. **Bumper and states** — a bumper and a CRUISE / IMPASSE state machine; a lawn case shows that without a
+   tall-grass sensor the robot keeps mowing the same strips.
+3. **The garden** — the original simulator, with the fitness function, random search, then metaheuristics
+   (local search, simulated annealing, genetic algorithm) compared on the same budget.
+
+The agent's internal architecture (sensors → weights → motors) is drawn and animated live at every step.
+The English toggle has been removed for now: the new steps are in French only.
+
 ## How it is used in class
 
 This is the second session of a 15-hour no-code **Introduction to AI** course for first-year computer-science
