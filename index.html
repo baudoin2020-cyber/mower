@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot tondeuse de Braitenberg</title>
+<style>
+  :root {
+    --bg: #f6f5f0; --panel: #ffffff; --ink: #1f2a1f; --muted: #5d6b5d;
+    --accent: #2f7d32; --accent2: #c0392b; --line: #dfe3da;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  header { display: flex; align-items: baseline; justify-content: space-between;
+           padding: 14px 22px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  header p { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
+  .lang button { border: 1px solid var(--line); background: #fff; padding: 4px 10px; cursor: pointer; border-radius: 6px; }
+  .lang button.on { background: var(--ink); color: #fff; }
+  main { display: grid; grid-template-columns: minmax(0, 620px) minmax(300px, 1fr); gap: 18px; padding: 18px 22px; max-width: 1200px; }
+  @media (max-width: 960px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; }
+  .card h2 { font-size: 1rem; margin: 0 0 10px; }
+  canvas#lawn { width: 100%; height: auto; border-radius: 8px; display: block; background: #3f8f3a; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; }
+  button.act { border: none; background: var(--accent); color: #fff; padding: 7px 14px; border-radius: 7px; cursor: pointer; font-size: .9rem; }
+  button.act.sec { background: #e9ece4; color: var(--ink); }
+  button.act.warn { background: var(--accent2); }
+  button.act:disabled { opacity: .5; cursor: default; }
+  select { padding: 6px; border-radius: 6px; border: 1px solid var(--line); }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+  .stat { background: #f1f4ec; border-radius: 8px; padding: 8px 10px; }
+  .stat .v { font-size: 1.3rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .stat .k { font-size: .75rem; color: var(--muted); }
+  .slider { display: grid; grid-template-columns: 1fr 52px; gap: 2px 8px; margin-bottom: 9px; }
+  .slider label { font-size: .85rem; }
+  .slider output { text-align: right; font-variant-numeric: tabular-nums; font-size: .85rem; }
+  .slider input { grid-column: 1 / 3; width: 100%; }
+  .hint { font-size: .8rem; color: var(--muted); margin: 4px 0 10px; }
+  .result { font-size: .95rem; margin-top: 8px; min-height: 1.3em; }
+  canvas#chart { width: 100%; height: 130px; display: block; background: #f7f8f4; border-radius: 6px; margin-top: 8px; }
+  .legend { font-size: .78rem; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; }
+  footer { padding: 0 22px 20px; color: var(--muted); font-size: .8rem; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1 data-i18n="title">Robot tondeuse de Braitenberg</h1>
+    <p data-i18n="subtitle">Régler un agent à la main, définir une fonction d'évaluation, puis laisser l'ordinateur optimiser.</p>
+  </div>
+  <div class="lang"><button id="lang-fr" class="on">FR</button> <button id="lang-en">EN</button></div>
+</header>
+
+<main>
+  <section>
+    <div class="card">
+      <canvas id="lawn" width="600" height="400"></canvas>
+      <div class="controls">
+        <button class="act" id="btn-run" data-i18n="run">▶ Lancer</button>
+        <button class="act sec" id="btn-reset" data-i18n="reset">↺ Recommencer</button>
+        <button class="act sec" id="btn-newpos" data-i18n="newpos">Nouvelle position de départ</button>
+        <label><span data-i18n="speed">Vitesse</span>
+          <select id="speed">
+            <option value="1">×1</option><option value="5" selected>×5</option>
+            <option value="20">×20</option><option value="100">×100</option>
+          </select></label>
+        <label><span data-i18n="garden">Jardin</span>
+          <select id="garden"></select></label>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v" id="s-cov">0 %</div><div class="k" data-i18n="cov">surface tondue</div></div>
+        <div class="stat"><div class="v" id="s-col">0</div><div class="k" data-i18n="col">collisions</div></div>
+        <div class="stat"><div class="v" id="s-time">0</div><div class="k" data-i18n="time">pas de temps</div></div>
+        <div class="stat"><div class="v" id="s-score">0</div><div class="k" data-i18n="score">score</div></div>
+      </div>
+      <div class="legend">
+        <span><span class="dot" style="background:#e05a2b"></span><span data-i18n="lg-obs">capteurs d'obstacle (portée)</span></span>
+        <span><span class="dot" style="background:#ffe14d"></span><span data-i18n="lg-grass">capteurs d'herbe haute</span></span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2 data-i18n="h-tune">1. Régler le robot</h2>
+      <p class="hint" data-i18n="hint-tune">Chaque moteur reçoit une vitesse de base, plus la somme des capteurs multipliée par des poids. « Même côté » : le capteur gauche agit sur le moteur gauche. « Côté opposé » : le capteur gauche agit sur le moteur droit.</p>
+      <div id="sliders"></div>
+      <div class="controls">
+        <button class="act sec" id="btn-random" data-i18n="random">🎲 Valeurs au hasard</button>
+        <button class="act sec" id="btn-default" data-i18n="default">Valeurs initiales</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="h-eval">2. Évaluer</h2>
+      <p class="hint" data-i18n="hint-eval">Score = surface tondue (%) − pénalité × nombre de collisions, en moyenne sur 3 parties de 4000 pas avec des départs différents.</p>
+      <div class="slider">
+        <label for="penalty" data-i18n="penalty">Pénalité par collision</label><output id="penalty-out"></output>
+        <input type="range" id="penalty" min="0" max="0.5" step="0.01" value="0.1">
+      </div>
+      <button class="act" id="btn-eval" data-i18n="eval">Évaluer ces réglages</button>
+      <div class="result" id="eval-result"></div>
+    </div>
+
+    <div class="card">
+      <h2 data-i18n="h-opt">3. Optimiser</h2>
+      <p class="hint" data-i18n="hint-opt">L'ordinateur modifie un peu les réglages au hasard et garde la modification si le score ne baisse pas (recherche locale). Les curseurs suivent le meilleur réglage trouvé.</p>
+      <div class="controls" style="margin-top:0">
+        <button class="act" id="btn-opt" data-i18n="opt">Optimiser</button>
+        <button class="act warn" id="btn-stop" disabled data-i18n="stop">Arrêter</button>
+      </div>
+      <div class="result" id="opt-result"></div>
+      <canvas id="chart" width="560" height="130"></canvas>
+    </div>
+  </section>
+</main>
+<footer data-i18n="footer">Activité du cours « Découverte de l'IA » (sans code) — Frédéric Baudoin. Inspiré de Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).</footer>
+
+<script>
+"use strict";
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const W = 600, H = 400, CELL = 5, COLS = W / CELL, ROWS = H / CELL;
+const R = 10;            // robot radius (px) = cutting radius
+const WHEELBASE = 20;    // distance between wheels
+const MAXV = 3;          // max wheel speed (px / step)
+const RANGE = 60;        // obstacle sensor range (px)
+const GRASS_D = 14;      // grass sensor distance in front of the body (px)
+const STEPS = 4000;      // duration of one run
+const EVAL_SEEDS = [11, 22, 33];
+
+// ---------------------------------------------------------------------------
+// Translations
+// ---------------------------------------------------------------------------
+const I18N = {
+  fr: {
+    title: "Robot tondeuse de Braitenberg",
+    subtitle: "Régler un agent à la main, définir une fonction d'évaluation, puis laisser l'ordinateur optimiser.",
+    run: "▶ Lancer", pause: "⏸ Pause", reset: "↺ Recommencer", newpos: "Nouvelle position de départ",
+    speed: "Vitesse", garden: "Jardin",
+    cov: "surface tondue", col: "collisions", time: "pas de temps", score: "score",
+    "lg-obs": "capteurs d'obstacle (portée)", "lg-grass": "capteurs d'herbe haute",
+    "h-tune": "1. Régler le robot",
+    "hint-tune": "Chaque moteur reçoit une vitesse de base, plus la somme des capteurs multipliée par des poids. « Même côté » : le capteur gauche agit sur le moteur gauche. « Côté opposé » : le capteur gauche agit sur le moteur droit.",
+    random: "🎲 Valeurs au hasard", default: "Valeurs initiales",
+    "h-eval": "2. Évaluer",
+    "hint-eval": "Score = surface tondue (%) − pénalité × nombre de collisions, en moyenne sur 3 parties de 4000 pas avec des départs différents.",
+    penalty: "Pénalité par collision", eval: "Évaluer ces réglages",
+    "h-opt": "3. Optimiser",
+    "hint-opt": "L'ordinateur modifie un peu les réglages au hasard et garde la modification si le score ne baisse pas (recherche locale). Les curseurs suivent le meilleur réglage trouvé.",
+    opt: "Optimiser", stop: "Arrêter",
+    footer: "Activité du cours « Découverte de l'IA » (sans code) — Frédéric Baudoin. Inspiré de Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).",
+    p_base: "Vitesse de base", p_obsSame: "Obstacle → moteur du même côté", p_obsCross: "Obstacle → moteur du côté opposé",
+    p_grassSame: "Herbe haute → moteur du même côté", p_grassCross: "Herbe haute → moteur du côté opposé",
+    p_angle: "Angle des capteurs (°)", p_noise: "Hasard (bruit sur les moteurs)",
+    g_simple: "Pelouse simple", g_trees: "Verger", g_maze: "Couloirs",
+    evalRes: (s, c, k) => `Score moyen : <b>${s.toFixed(1)}</b> (tonte ${c.toFixed(1)} %, ${k.toFixed(0)} collisions en moyenne)`,
+    optRes: (i, s, s0) => `Essai ${i} — meilleur score : <b>${s.toFixed(1)}</b> (départ : ${s0.toFixed(1)})`,
+    optDone: " — terminé. Cliquez sur « Lancer » pour voir le robot optimisé.",
+    finished: "Temps écoulé",
+  },
+  en: {
+    title: "Braitenberg Robot Mower",
+    subtitle: "Tune an agent by hand, define an evaluation function, then let the computer optimise.",
+    run: "▶ Run", pause: "⏸ Pause", reset: "↺ Restart", newpos: "New starting position",
+    speed: "Speed", garden: "Garden",
+    cov: "area mowed", col: "collisions", time: "time steps", score: "score",
+    "lg-obs": "obstacle sensors (range)", "lg-grass": "tall-grass sensors",
+    "h-tune": "1. Tune the robot",
+    "hint-tune": "Each motor receives a base speed plus the sum of the sensor readings multiplied by weights. \"Same side\": the left sensor drives the left motor. \"Opposite side\": the left sensor drives the right motor.",
+    random: "🎲 Random values", default: "Initial values",
+    "h-eval": "2. Evaluate",
+    "hint-eval": "Score = area mowed (%) − penalty × number of collisions, averaged over 3 runs of 4000 steps from different starting points.",
+    penalty: "Penalty per collision", eval: "Evaluate these settings",
+    "h-opt": "3. Optimise",
+    "hint-opt": "The computer slightly changes the settings at random and keeps the change if the score does not decrease (local search). The sliders follow the best settings found.",
+    opt: "Optimise", stop: "Stop",
+    footer: "Activity from the no-code course \"Introduction to AI\" — Frédéric Baudoin. Inspired by Valentino Braitenberg, <i>Vehicles: Experiments in Synthetic Psychology</i> (1984).",
+    p_base: "Base speed", p_obsSame: "Obstacle → same-side motor", p_obsCross: "Obstacle → opposite-side motor",
+    p_grassSame: "Tall grass → same-side motor", p_grassCross: "Tall grass → opposite-side motor",
+    p_angle: "Sensor angle (°)", p_noise: "Randomness (motor noise)",
+    g_simple: "Simple lawn", g_trees: "Orchard", g_maze: "Corridors",
+    evalRes: (s, c, k) => `Average score: <b>${s.toFixed(1)}</b> (${c.toFixed(1)} % mowed, ${k.toFixed(0)} collisions on average)`,
+    optRes: (i, s, s0) => `Trial ${i} — best score: <b>${s.toFixed(1)}</b> (start: ${s0.toFixed(1)})`,
+    optDone: " — done. Click \"Run\" to watch the optimised robot.",
+    finished: "Time is up",
+  }
+};
+let lang = "fr";
+const t = k => I18N[lang][k];
+
+// ---------------------------------------------------------------------------
+// Parameters
+// ---------------------------------------------------------------------------
+const PARAMS = [
+  { key: "base",       min: 0,   max: 3,  step: 0.05, def: 1.5 },
+  { key: "obsSame",    min: -3,  max: 3,  step: 0.05, def: 0.5 },
+  { key: "obsCross",   min: -3,  max: 3,  step: 0.05, def: 0 },
+  { key: "grassSame",  min: -3,  max: 3,  step: 0.05, def: 0 },
+  { key: "grassCross", min: -3,  max: 3,  step: 0.05, def: 0 },
+  { key: "angle",      min: 5,   max: 85, step: 1,    def: 30 },
+  { key: "noise",      min: 0,   max: 1.5, step: 0.05, def: 0.1 },
+];
+let params = Object.fromEntries(PARAMS.map(p => [p.key, p.def]));
+
+// ---------------------------------------------------------------------------
+// Gardens (obstacles in pixel coordinates; borders are walls)
+// ---------------------------------------------------------------------------
+const GARDENS = {
+  simple: [
+    { type: "circle", x: 170, y: 140, r: 28 },
+    { type: "circle", x: 430, y: 270, r: 34 },
+    { type: "rect", x: 460, y: 40, w: 90, h: 50, kind: "shed" },
+  ],
+  trees: [
+    ...[[110,90],[250,90],[390,90],[530,90],[180,200],[320,200],[460,200],[110,310],[250,310],[390,310],[530,310]]
+      .map(([x, y]) => ({ type: "circle", x, y, r: 20 })),
+  ],
+  maze: [
+    { type: "rect", x: 150, y: 0, w: 16, h: 270, kind: "wall" },
+    { type: "rect", x: 300, y: 130, w: 16, h: 270, kind: "wall" },
+    { type: "rect", x: 450, y: 0, w: 16, h: 270, kind: "wall" },
+    { type: "circle", x: 75, y: 320, r: 26 },
+  ],
+};
+let gardenKey = "simple";
+
+// ---------------------------------------------------------------------------
+// Geometry
+// ---------------------------------------------------------------------------
+function insideObstacle(obs, x, y) {
+  if (x < 0 || y < 0 || x >= W || y >= H) return true;
+  for (const o of obs) {
+    if (o.type === "circle") { if ((x - o.x) ** 2 + (y - o.y) ** 2 < o.r * o.r) return true; }
+    else if (x >= o.x && x < o.x + o.w && y >= o.y && y < o.y + o.h) return true;
+  }
+  return false;
+}
+function collides(obs, x, y) {
+  if (x < R || y < R || x > W - R || y > H - R) return true;
+  for (const o of obs) {
+    if (o.type === "circle") { if ((x - o.x) ** 2 + (y - o.y) ** 2 < (o.r + R) ** 2) return true; }
+    else {
+      const cx = Math.max(o.x, Math.min(x, o.x + o.w)), cy = Math.max(o.y, Math.min(y, o.y + o.h));
+      if ((x - cx) ** 2 + (y - cy) ** 2 < R * R) return true;
+    }
+  }
+  return false;
+}
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// Template grid per garden: 0 = obstacle, 1 = grass
+const templates = {};
+function gardenTemplate(key) {
+  if (templates[key]) return templates[key];
+  const obs = GARDENS[key], grid = new Uint8Array(COLS * ROWS);
+  let total = 0;
+  for (let j = 0; j < ROWS; j++) for (let i = 0; i < COLS; i++) {
+    const g = insideObstacle(obs, i * CELL + CELL / 2, j * CELL + CELL / 2) ? 0 : 1;
+    grid[j * COLS + i] = g; total += g;
+  }
+  return (templates[key] = { grid, total });
+}
+
+// ---------------------------------------------------------------------------
+// Simulation
+// ---------------------------------------------------------------------------
+function createSim(key, seed) {
+  const tpl = gardenTemplate(key), rng = mulberry32(seed);
+  const sim = { key, obs: GARDENS[key], grid: tpl.grid.slice(), total: tpl.total, rng,
+                x: 0, y: 0, a: 0, steps: 0, collisions: 0, mowed: 0, sensors: null, changed: [] };
+  do { sim.x = R + rng() * (W - 2 * R); sim.y = R + rng() * (H - 2 * R); } while (collides(sim.obs, sim.x, sim.y));
+  sim.a = rng() * 2 * Math.PI;
+  mow(sim);
+  return sim;
+}
+function mow(sim) {
+  const i0 = Math.max(0, Math.floor((sim.x - R) / CELL)), i1 = Math.min(COLS - 1, Math.floor((sim.x + R) / CELL));
+  const j0 = Math.max(0, Math.floor((sim.y - R) / CELL)), j1 = Math.min(ROWS - 1, Math.floor((sim.y + R) / CELL));
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
+    const idx = j * COLS + i;
+    if (sim.grid[idx] !== 1) continue;
+    const cx = i * CELL + CELL / 2, cy = j * CELL + CELL / 2;
+    if ((cx - sim.x) ** 2 + (cy - sim.y) ** 2 <= R * R) { sim.grid[idx] = 2; sim.mowed++; sim.changed.push(idx); }
+  }
+}
+function obstacleSensor(sim, a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  for (let d = 0; d <= RANGE; d += 2) {
+    if (insideObstacle(sim.obs, sim.x + c * (R + d), sim.y + s * (R + d))) return 1 - d / RANGE;
+  }
+  return 0;
+}
+function grassSensor(sim, a) {
+  const px = sim.x + Math.cos(a) * (R + GRASS_D), py = sim.y + Math.sin(a) * (R + GRASS_D);
+  const i = Math.floor(px / CELL), j = Math.floor(py / CELL);
+  if (i < 0 || j < 0 || i >= COLS || j >= ROWS) return 0;
+  return sim.grid[j * COLS + i] === 1 ? 1 : 0;
+}
+function step(sim, p) {
+  const da = p.angle * Math.PI / 180;
+  const aL = sim.a - da, aR = sim.a + da;           // canvas y points down: left = smaller angle
+  const oL = obstacleSensor(sim, aL), oR = obstacleSensor(sim, aR);
+  const gL = grassSensor(sim, aL), gR = grassSensor(sim, aR);
+  sim.sensors = { oL, oR, gL, gR, aL, aR };
+  const clamp = v => Math.max(-MAXV, Math.min(MAXV, v));
+  const mL = clamp(p.base + p.obsSame * oL + p.obsCross * oR + p.grassSame * gL + p.grassCross * gR + p.noise * (sim.rng() * 2 - 1));
+  const mR = clamp(p.base + p.obsSame * oR + p.obsCross * oL + p.grassSame * gR + p.grassCross * gL + p.noise * (sim.rng() * 2 - 1));
+  sim.a += (mL - mR) / WHEELBASE;                    // left wheel faster -> turn right
+  const v = (mL + mR) / 2;
+  const nx = sim.x + Math.cos(sim.a) * v, ny = sim.y + Math.sin(sim.a) * v;
+  if (collides(sim.obs, nx, ny)) {
+    // Bumper reflex, as on real robot mowers: back off a little and turn by a random angle
+    sim.collisions++;
+    const bx = sim.x - Math.cos(sim.a) * 2, by = sim.y - Math.sin(sim.a) * 2;
+    if (!collides(sim.obs, bx, by)) { sim.x = bx; sim.y = by; }
+    sim.a += (sim.rng() < 0.5 ? -1 : 1) * (Math.PI / 2 + sim.rng() * Math.PI / 2);
+  } else { sim.x = nx; sim.y = ny; mow(sim); }
+  sim.steps++;
+}
+const coverage = sim => 100 * sim.mowed / sim.total;
+const scoreOf = (sim, penalty) => coverage(sim) - penalty * sim.collisions;
+
+function evaluate(p, key, penalty) {
+  let s = 0, c = 0, k = 0;
+  for (const seed of EVAL_SEEDS) {
+    const sim = createSim(key, seed);
+    for (let n = 0; n < STEPS; n++) step(sim, p);
+    s += scoreOf(sim, penalty); c += coverage(sim); k += sim.collisions;
+  }
+  const n = EVAL_SEEDS.length;
+  return { score: s / n, cov: c / n, col: k / n };
+}
+
+// ---------------------------------------------------------------------------
+// Drawing
+// ---------------------------------------------------------------------------
+const lawn = document.getElementById("lawn"), ctx = lawn.getContext("2d");
+const off = document.createElement("canvas"); off.width = COLS; off.height = ROWS;
+const offCtx = off.getContext("2d"), img = offCtx.createImageData(COLS, ROWS);
+const GRASS_RGB = [[63, 143, 58], [58, 135, 54], [68, 150, 62]], CUT_RGB = [[166, 214, 138], [158, 206, 130]];
+function paintCell(idx, g) {
+  const i = idx % COLS, j = (idx / COLS) | 0, o = idx * 4;
+  const col = g === 1 ? GRASS_RGB[(i * 7 + j * 13) % 3] : g === 2 ? CUT_RGB[(i + j) % 2] : [120, 100, 80];
+  img.data[o] = col[0]; img.data[o + 1] = col[1]; img.data[o + 2] = col[2]; img.data[o + 3] = 255;
+}
+function paintAll(sim) { for (let idx = 0; idx < sim.grid.length; idx++) paintCell(idx, sim.grid[idx]); sim.changed.length = 0; }
+function draw(sim) {
+  for (const idx of sim.changed) paintCell(idx, 2);
+  sim.changed.length = 0;
+  offCtx.putImageData(img, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, W, H);
+  // obstacles
+  for (const o of sim.obs) {
+    if (o.type === "circle") {
+      ctx.fillStyle = "#24572a"; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = "#2f6e35"; ctx.beginPath(); ctx.arc(o.x - o.r * .25, o.y - o.r * .25, o.r * .55, 0, 2 * Math.PI); ctx.fill();
+    } else {
+      ctx.fillStyle = o.kind === "wall" ? "#8b8f88" : "#9c6b45"; ctx.fillRect(o.x, o.y, o.w, o.h);
+    }
+  }
+  // sensors
+  const s = sim.sensors;
+  if (s) {
+    for (const [a, v] of [[s.aL, s.oL], [s.aR, s.oR]]) {
+      ctx.strokeStyle = v > 0 ? "#e05a2b" : "rgba(224,90,43,.35)"; ctx.lineWidth = v > 0 ? 2.5 : 1.5;
+      ctx.beginPath(); ctx.moveTo(sim.x + Math.cos(a) * R, sim.y + Math.sin(a) * R);
+      ctx.lineTo(sim.x + Math.cos(a) * (R + RANGE), sim.y + Math.sin(a) * (R + RANGE)); ctx.stroke();
+    }
+    for (const [a, v] of [[s.aL, s.gL], [s.aR, s.gR]]) {
+      ctx.fillStyle = v ? "#ffe14d" : "rgba(255,225,77,.35)";
+      ctx.beginPath(); ctx.arc(sim.x + Math.cos(a) * (R + GRASS_D), sim.y + Math.sin(a) * (R + GRASS_D), 3.5, 0, 2 * Math.PI); ctx.fill();
+    }
+  }
+  // robot body
+  ctx.fillStyle = "#c0392b"; ctx.strokeStyle = "#5e1a13"; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(sim.x, sim.y, R, 0, 2 * Math.PI); ctx.fill(); ctx.stroke();
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(sim.x, sim.y); ctx.lineTo(sim.x + Math.cos(sim.a) * R, sim.y + Math.sin(sim.a) * R); ctx.stroke();
+  if (sim.steps >= STEPS) {
+    ctx.fillStyle = "rgba(0,0,0,.55)"; ctx.fillRect(0, H / 2 - 24, W, 48);
+    ctx.fillStyle = "#fff"; ctx.font = "600 20px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(`${t("finished")} — ${t("score")} ${scoreOf(sim, penalty()).toFixed(1)}`, W / 2, H / 2);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+const fmt = (p, v) => p.step >= 1 ? String(Math.round(v)) : v.toFixed(2);
+const penalty = () => parseFloat($("penalty").value);
+
+function buildSliders() {
+  const box = $("sliders"); box.innerHTML = "";
+  for (const p of PARAMS) {
+    const d = document.createElement("div"); d.className = "slider";
+    d.innerHTML = `<label for="p-${p.key}">${t("p_" + p.key)}</label><output id="o-${p.key}"></output>
+      <input type="range" id="p-${p.key}" min="${p.min}" max="${p.max}" step="${p.step}">`;
+    box.appendChild(d);
+    const inp = d.querySelector("input");
+    inp.value = params[p.key];
+    inp.addEventListener("input", () => { params[p.key] = parseFloat(inp.value); syncOutputs(); });
+  }
+  syncOutputs();
+}
+function syncSliders() { for (const p of PARAMS) $("p-" + p.key).value = params[p.key]; syncOutputs(); }
+function syncOutputs() {
+  for (const p of PARAMS) $("o-" + p.key).textContent = fmt(p, params[p.key]);
+  $("penalty-out").textContent = penalty().toFixed(3);
+}
+
+let sim, running = false, seed = EVAL_SEEDS[0];
+function resetSim() {
+  sim = createSim(gardenKey, seed);
+  paintAll(sim); updateStats(); draw(sim);
+}
+function updateStats() {
+  $("s-cov").textContent = coverage(sim).toFixed(1) + " %";
+  $("s-col").textContent = sim.collisions;
+  $("s-time").textContent = sim.steps;
+  $("s-score").textContent = scoreOf(sim, penalty()).toFixed(1);
+}
+function setRunning(on) {
+  running = on; $("btn-run").textContent = on ? t("pause") : t("run");
+  if (on) requestAnimationFrame(loop);
+}
+function loop() {
+  if (!running) return;
+  const n = parseInt($("speed").value, 10);
+  for (let k = 0; k < n && sim.steps < STEPS; k++) step(sim, params);
+  draw(sim); updateStats();
+  if (sim.steps >= STEPS) { setRunning(false); return; }
+  requestAnimationFrame(loop);
+}
+
+$("btn-run").onclick = () => { if (sim.steps >= STEPS) resetSim(); setRunning(!running); };
+$("btn-reset").onclick = () => { setRunning(false); resetSim(); };
+$("btn-newpos").onclick = () => { setRunning(false); seed = 1 + Math.floor(Math.random() * 1e6); resetSim(); };
+$("garden").onchange = e => { setRunning(false); gardenKey = e.target.value; resetSim(); };
+$("penalty").oninput = () => { syncOutputs(); updateStats(); };
+$("btn-random").onclick = () => {
+  for (const p of PARAMS) params[p.key] = Math.round((p.min + Math.random() * (p.max - p.min)) / p.step) * p.step;
+  syncSliders();
+};
+$("btn-default").onclick = () => { for (const p of PARAMS) params[p.key] = p.def; syncSliders(); };
+$("btn-eval").onclick = () => {
+  $("eval-result").textContent = "…";
+  setTimeout(() => { const r = evaluate(params, gardenKey, penalty()); $("eval-result").innerHTML = t("evalRes")(r.score, r.cov, r.col); }, 20);
+};
+
+// ---------------------------------------------------------------------------
+// Optimisation: (1+1) local search with Gaussian mutations
+// ---------------------------------------------------------------------------
+let opt = null;
+function gauss(rng) { let u = 0, v = 0; while (u === 0) u = rng(); v = rng(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function mutate(p, rng) {
+  const q = { ...p };
+  for (const d of PARAMS) {
+    if (rng() < 0.5) continue;                       // change about half of the parameters
+    const v = q[d.key] + gauss(rng) * 0.15 * (d.max - d.min);
+    q[d.key] = Math.round(Math.max(d.min, Math.min(d.max, v)) / d.step) * d.step;
+  }
+  return q;
+}
+function startOpt() {
+  setRunning(false);
+  const pen = penalty(), r0 = evaluate(params, gardenKey, pen);
+  opt = { best: { ...params }, bestScore: r0.score, start: r0.score, iter: 0, max: 150,
+          history: [r0.score], tried: [r0.score], rng: mulberry32(Date.now() & 0xffffffff), pen, key: gardenKey };
+  $("btn-opt").disabled = true; $("btn-stop").disabled = false; $("btn-eval").disabled = true;
+  optTick();
+}
+function optTick() {
+  if (!opt) return;
+  const cand = mutate(opt.best, opt.rng), r = evaluate(cand, opt.key, opt.pen);
+  opt.iter++; opt.tried.push(r.score);
+  if (r.score >= opt.bestScore) { opt.best = cand; opt.bestScore = r.score; params = { ...cand }; syncSliders(); }
+  opt.history.push(opt.bestScore);
+  $("opt-result").innerHTML = t("optRes")(opt.iter, opt.bestScore, opt.start);
+  drawChart();
+  if (opt.iter >= opt.max) stopOpt(); else setTimeout(optTick, 0);
+}
+function stopOpt() {
+  if (!opt) return;
+  $("opt-result").innerHTML = t("optRes")(opt.iter, opt.bestScore, opt.start) + t("optDone");
+  opt.done = true; const last = opt; opt = null; lastOpt = last;
+  $("btn-opt").disabled = false; $("btn-stop").disabled = true; $("btn-eval").disabled = false;
+  resetSim();
+}
+let lastOpt = null;
+function drawChart() {
+  const o = opt || lastOpt, c = $("chart"), g = c.getContext("2d"), w = c.width, h = c.height;
+  g.clearRect(0, 0, w, h);
+  if (!o) return;
+  const all = o.tried.concat(o.history), lo = Math.min(...all), hi = Math.max(...all), span = Math.max(1, hi - lo);
+  const n = Math.max(o.max, 1), X = i => 30 + i / n * (w - 40), Y = v => h - 18 - (v - lo) / span * (h - 30);
+  g.strokeStyle = "#dfe3da"; g.beginPath(); g.moveTo(30, 8); g.lineTo(30, h - 18); g.lineTo(w - 10, h - 18); g.stroke();
+  g.fillStyle = "#5d6b5d"; g.font = "11px system-ui"; g.textAlign = "right";
+  g.fillText(hi.toFixed(0), 26, 14); g.fillText(lo.toFixed(0), 26, h - 18);
+  g.fillStyle = "rgba(192,57,43,.35)";
+  o.tried.forEach((v, i) => { g.beginPath(); g.arc(X(i), Y(v), 2, 0, 2 * Math.PI); g.fill(); });
+  g.strokeStyle = "#2f7d32"; g.lineWidth = 2; g.beginPath();
+  o.history.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v))); g.stroke();
+}
+$("btn-opt").onclick = startOpt;
+$("btn-stop").onclick = stopOpt;
+
+// ---------------------------------------------------------------------------
+// Language & init
+// ---------------------------------------------------------------------------
+function applyLang(l) {
+  lang = l; document.documentElement.lang = l; document.title = t("title");
+  $("lang-fr").classList.toggle("on", l === "fr"); $("lang-en").classList.toggle("on", l === "en");
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const v = I18N[l][el.dataset.i18n]; if (typeof v === "string") el.innerHTML = v;
+  });
+  $("btn-run").textContent = running ? t("pause") : t("run");
+  const gs = $("garden"), cur = gardenKey; gs.innerHTML = "";
+  for (const k of Object.keys(GARDENS)) { const o = document.createElement("option"); o.value = k; o.textContent = t("g_" + k); gs.appendChild(o); }
+  gs.value = cur;
+  buildSliders();
+  $("eval-result").textContent = "";
+  if (lastOpt && !opt) $("opt-result").innerHTML = t("optRes")(lastOpt.iter, lastOpt.bestScore, lastOpt.start) + t("optDone");
+  if (sim) draw(sim);
+}
+$("lang-fr").onclick = () => applyLang("fr");
+$("lang-en").onclick = () => applyLang("en");
+const urlLang = new URLSearchParams(location.search).get("lang");
+applyLang(urlLang === "en" ? "en" : "fr");
+resetSim();
+</script>
+</body>
+</html>
